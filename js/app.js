@@ -6,7 +6,7 @@
 const STORAGE_KEY = 'rentora_enterprise_v2';
 const MEMBERS_REGISTRY_KEY = 'rentora_members_registry_v1';
 const ACTIVE_SESSION_KEY = 'rentora_active_member_session_v1';
-const CURRENT_APP_VERSION = '1.2.3';
+const CURRENT_APP_VERSION = '1.2.4';
 const AUTH_GATE_STORAGE_KEY = 'rentora_device_auth_token_v1';
 const AUTH_EXPECTED_SHA256 = '7a29b5e673caa030731ebf304028832c0d4617404f395950cb64a2f80dbc0ae6';
 const LEGACY_KEYS = ['rentora_enterprise_v1', 'avigen_kira_takip_v1'];
@@ -690,15 +690,77 @@ async function refreshLiveMarketRates(notify = false) {
   }
 }
 
+const HISTORICAL_MONTHLY_FX_TABLE = {
+  '2018-01': { USD: 3.77, EUR: 4.53, XAU: 161 }, '2018-06': { USD: 4.63, EUR: 5.41, XAU: 192 }, '2018-12': { USD: 5.31, EUR: 6.04, XAU: 218 },
+  '2019-01': { USD: 5.37, EUR: 6.13, XAU: 225 }, '2019-06': { USD: 5.81, EUR: 6.56, XAU: 264 }, '2019-12': { USD: 5.85, EUR: 6.50, XAU: 284 },
+  '2020-01': { USD: 5.92, EUR: 6.58, XAU: 298 }, '2020-06': { USD: 6.81, EUR: 7.66, XAU: 381 }, '2020-12': { USD: 7.72, EUR: 9.38, XAU: 458 },
+  '2021-01': { USD: 7.40, EUR: 9.01, XAU: 442 }, '2021-06': { USD: 8.63, EUR: 10.40, XAU: 512 }, '2021-12': { USD: 13.52, EUR: 15.28, XAU: 782 },
+  '2022-01': { USD: 13.55, EUR: 15.35, XAU: 796 }, '2022-04': { USD: 14.72, EUR: 15.95, XAU: 915 }, '2022-08': { USD: 18.05, EUR: 18.30, XAU: 1020 }, '2022-12': { USD: 18.65, EUR: 19.75, XAU: 1085 },
+  '2023-01': { USD: 18.78, EUR: 20.25, XAU: 1140 }, '2023-03': { USD: 19.01, EUR: 20.38, XAU: 1185 }, '2023-06': { USD: 23.60, EUR: 25.60, XAU: 1485 }, '2023-09': { USD: 27.05, EUR: 28.95, XAU: 1675 }, '2023-12': { USD: 29.15, EUR: 31.85, XAU: 1925 },
+  '2024-01': { USD: 30.10, EUR: 32.85, XAU: 2010 },
+  '2024-02': { USD: 30.80, EUR: 33.25, XAU: 2045 },
+  '2024-03': { USD: 32.10, EUR: 34.90, XAU: 2240 },
+  '2024-04': { USD: 32.40, EUR: 34.70, XAU: 2430 },
+  '2024-05': { USD: 32.25, EUR: 34.95, XAU: 2445 },
+  '2024-06': { USD: 32.65, EUR: 35.05, XAU: 2450 },
+  '2024-07': { USD: 32.95, EUR: 35.75, XAU: 2560 },
+  '2024-08': { USD: 33.75, EUR: 37.25, XAU: 2710 },
+  '2024-09': { USD: 34.05, EUR: 37.90, XAU: 2860 },
+  '2024-10': { USD: 34.25, EUR: 37.30, XAU: 2985 },
+  '2024-11': { USD: 34.45, EUR: 36.45, XAU: 2940 },
+  '2024-12': { USD: 35.05, EUR: 36.75, XAU: 2980 },
+  '2025-01': { USD: 35.45, EUR: 36.85, XAU: 3055 },
+  '2025-02': { USD: 36.05, EUR: 37.50, XAU: 3315 },
+  '2025-03': { USD: 36.55, EUR: 38.15, XAU: 3440 },
+  '2025-04': { USD: 37.00, EUR: 38.70, XAU: 3510 },
+  '2025-05': { USD: 37.45, EUR: 39.20, XAU: 3570 },
+  '2025-06': { USD: 37.90, EUR: 39.70, XAU: 3630 },
+  '2025-07': { USD: 38.35, EUR: 40.20, XAU: 3690 },
+  '2025-08': { USD: 38.80, EUR: 40.75, XAU: 3750 },
+  '2025-09': { USD: 39.25, EUR: 41.25, XAU: 3810 },
+  '2025-10': { USD: 39.70, EUR: 41.80, XAU: 3870 },
+  '2025-11': { USD: 40.15, EUR: 42.30, XAU: 3930 },
+  '2025-12': { USD: 40.60, EUR: 42.80, XAU: 3990 }
+};
+
 function getHistoricalFxRates(dateIso = '') {
-  const yr = Number(String(dateIso).slice(0, 4)) || activeYear;
-  if (yr <= 2019) return { TRY: 1, USD: 5.70, EUR: 6.35, XAU: 280 };
-  if (yr === 2020) return { TRY: 1, USD: 7.00, EUR: 8.00, XAU: 450 };
-  if (yr === 2021) return { TRY: 1, USD: 8.90, EUR: 10.40, XAU: 520 };
-  if (yr === 2022) return { TRY: 1, USD: 16.60, EUR: 17.50, XAU: 980 };
-  if (yr === 2023) return { TRY: 1, USD: 23.80, EUR: 25.70, XAU: 1550 };
-  if (yr === 2024) return { TRY: 1, USD: 32.50, EUR: 35.20, XAU: 2450 };
-  if (yr === 2025) return { TRY: 1, USD: 34.00, EUR: 36.80, XAU: 2850 };
+  const clean = String(dateIso || '').trim();
+  const todayIso = new Date().toISOString().slice(0, 10);
+  if (!clean || clean >= todayIso.slice(0, 7)) {
+    return getCurrentLiveFxRates();
+  }
+
+  const ym = clean.slice(0, 7);
+  if (HISTORICAL_MONTHLY_FX_TABLE[ym]) {
+    const r = HISTORICAL_MONTHLY_FX_TABLE[ym];
+    return { TRY: 1, USD: r.USD, EUR: r.EUR, XAU: r.XAU };
+  }
+
+  // Interpolate between nearest known monthly anchor points
+  const keys = Object.keys(HISTORICAL_MONTHLY_FX_TABLE).sort();
+  if (ym <= keys[0]) {
+    const first = HISTORICAL_MONTHLY_FX_TABLE[keys[0]];
+    return { TRY: 1, USD: first.USD, EUR: first.EUR, XAU: first.XAU };
+  }
+  for (let i = 0; i < keys.length - 1; i++) {
+    if (ym > keys[i] && ym < keys[i + 1]) {
+      const a = HISTORICAL_MONTHLY_FX_TABLE[keys[i]];
+      const b = HISTORICAL_MONTHLY_FX_TABLE[keys[i + 1]];
+      const [y1, m1] = keys[i].split('-').map(Number);
+      const [y2, m2] = keys[i + 1].split('-').map(Number);
+      const [yt, mt] = ym.split('-').map(Number);
+      const span = Math.max(1, (y2 - y1) * 12 + (m2 - m1));
+      const pos = (yt - y1) * 12 + (mt - m1);
+      const ratio = Math.min(1, Math.max(0, pos / span));
+      return {
+        TRY: 1,
+        USD: Number((a.USD + (b.USD - a.USD) * ratio).toFixed(2)),
+        EUR: Number((a.EUR + (b.EUR - a.EUR) * ratio).toFixed(2)),
+        XAU: Math.round(a.XAU + (b.XAU - a.XAU) * ratio)
+      };
+    }
+  }
+
   return getCurrentLiveFxRates();
 }
 
@@ -706,7 +768,7 @@ function formatUnitCurrency(val, cur = 'TRY') {
   const n = Number(val) || 0;
   if (cur === 'USD') return n.toLocaleString('tr-TR', { maximumFractionDigits: 1 }) + ' $';
   if (cur === 'EUR') return n.toLocaleString('tr-TR', { maximumFractionDigits: 1 }) + ' €';
-  if (cur === 'XAU') return n.toLocaleString('tr-TR', { maximumFractionDigits: 1 }) + ' Gr Altın';
+  if (cur === 'XAU') return n.toLocaleString('tr-TR', { maximumFractionDigits: 2 }) + ' Gr Altın';
   return Math.round(n).toLocaleString('tr-TR') + ' ₺';
 }
 
@@ -742,32 +804,70 @@ function ensureCurrencyAcquisitionDefaults() {
 function computePropertyBreakevenStats(prop) {
   const cur = prop.purchaseCurrency || 'USD';
   const acqCost = Number(prop.purchaseCostInCurrency || prop.purchasePrice || 100000);
-  const currentRates = getHistoricalFxRates(`${activeYear}-11-01`);
+  const currentRates = getCurrentLiveFxRates();
   const rateNow = currentRates[cur] || 1;
+  const dueDayStr = String(prop.dueDay || 5).padStart(2, '0');
+  const todayYm = new Date().toISOString().slice(0, 7);
 
-  // 1. Sum all recorded payments in the property's acquisition currency at collection date FX
+  // 1. Convert all recorded rent payments using their Payment Date (Ödeme Tarihi) or Accrual Date (Tahakkuk Tarihi) rate
   let collectedInUnit = 0;
-  let recordedMonths = 0;
+  const recordedPeriods = new Set();
+
   Object.keys(state.payments || {}).forEach(k => {
     if (k.startsWith(prop.id + '_')) {
+      const periodKey = k.slice(prop.id.length + 1);
       const rec = state.payments[k];
       if (rec && Number(rec.paidAmount) > 0 && rec.status !== 'cancelled') {
-        const fx = (rec.fxRates && rec.fxRates[cur]) ? Number(rec.fxRates[cur]) : (getHistoricalFxRates(rec.date)[cur] || rateNow);
+        recordedPeriods.add(periodKey);
+        const accrualDate = `${periodKey}-${dueDayStr}`;
+        let fx = rateNow;
+
+        if (rec.customFx && rec.fxRates && Number(rec.fxRates[cur]) > 0) {
+          // User explicitly edited the exchange/gold rate in the payment modal
+          fx = Number(rec.fxRates[cur]);
+        } else {
+          // Determine reference date: Payment Date (rec.date) if entered for that date, or Accrual Date (tahakkuk tarihi) if older period
+          let refDate = rec.date || accrualDate;
+          if (!rec.dateExplicit && periodKey < todayYm && String(rec.date || '').slice(0, 7) === todayYm) {
+            refDate = accrualDate;
+          }
+          fx = getHistoricalFxRates(refDate)[cur] || rateNow;
+        }
+
         collectedInUnit += Number(rec.paidAmount) / Math.max(0.0001, fx);
-        recordedMonths++;
       }
     }
   });
 
-  // 2. Include historical operating months since purchaseDate if property has been rented for years
+  // 2. For older operating months since purchaseDate / contractStart (before recorded payments),
+  //    convert each historical month at its own Accrual Date (Tahakkuk Tarihi) Gold / FX rate!
   const currentMonthlyInUnit = Number(prop.rentAmount || 0) / Math.max(0.0001, rateNow);
-  if (prop.purchaseDate) {
-    const pDate = new Date(prop.purchaseDate);
-    const monthsElapsed = Math.max(0, Math.round((new Date() - pDate) / (1000 * 60 * 60 * 24 * 30.4)));
-    const unrecordedPriorMonths = Math.max(0, monthsElapsed - recordedMonths);
-    if (unrecordedPriorMonths > 0 && currentMonthlyInUnit > 0) {
-      // Historical average rent in hard currency (~82% of current FX-equivalent rent)
-      collectedInUnit += unrecordedPriorMonths * (currentMonthlyInUnit * 0.82);
+  const startIso = prop.purchaseDate || prop.contractStart || '';
+  if (startIso && /^\d{4}-\d{2}/.test(startIso) && Number(prop.rentAmount) > 0) {
+    const [startY, startM] = startIso.slice(0, 7).split('-').map(Number);
+    const nowD = new Date();
+    const endY = nowD.getFullYear();
+    const endM = nowD.getMonth() + 1;
+
+    let y = startY;
+    let m = startM;
+    let safety = 0;
+    while ((y < endY || (y === endY && m < endM)) && safety < 240) {
+      safety++;
+      const pKey = `${y}-${String(m).padStart(2, '0')}`;
+      if (!recordedPeriods.has(pKey)) {
+        const accrualDate = `${pKey}-${dueDayStr}`;
+        const histRates = getHistoricalFxRates(accrualDate);
+        const histFx = histRates[cur] || rateNow;
+        // Scale historical TL rent proportionally to historical XAU/USD index if from prior years, then convert at that month's accrual rate
+        const indexRatio = (histRates.USD || 34.5) / Math.max(1, currentRates.USD || 34.5);
+        const estimatedHistTlRent = (y === endY)
+          ? Number(prop.rentAmount)
+          : Number(prop.rentAmount) * Math.max(0.12, Math.min(1, indexRatio * 0.92));
+        collectedInUnit += estimatedHistTlRent / Math.max(0.0001, histFx);
+      }
+      m++;
+      if (m > 12) { m = 1; y++; }
     }
   }
 
@@ -1610,44 +1710,8 @@ function setHomeFilter(hf) {
 
 function oneTapInstantCollect(propId, periodKey = getPeriodKey()) {
   if (!checkLicenseWritePermission(false)) return;
-  const prop = state.properties.find(p => p.id === propId);
-  if (!prop) return;
-  const info = getPropertyPeriodStatus(prop, periodKey);
-  if (info.status === 'paid') {
-    openPaymentModal(propId, periodKey);
-    return;
-  }
-
-  // Ask quick confirmation for 1-second full collection, or let user open detailed modal for partial payment
-  const todayIso = new Date().toISOString().slice(0, 10);
-  const fxRates = getCurrentLiveFxRates();
-
-  state.payments[`${propId}_${periodKey}`] = {
-    paidAmount: info.expected,
-    expectedAmount: info.expected,
-    date: todayIso,
-    method: 'Banka Havale/EFT',
-    note: 'Ana ekrandan tek dokunuşla tam tahsilat',
-    tenantId: prop.tenantId,
-    fxRates
-  };
-
-  state.paymentAuditLog.unshift({
-    id: 'aud_' + Date.now(),
-    timestamp: `${todayIso} ${new Date().toTimeString().slice(0, 5)}`,
-    propertyId: prop.id,
-    propertyName: prop.name,
-    tenantName: prop.tenantName,
-    periodKey,
-    amount: info.expected,
-    method: 'Banka Havale/EFT',
-    actionType: 'HIZLI TAM TAHSİLAT',
-    note: 'Ana ekrandan tek tuşla onaylandı'
-  });
-
-  saveState();
-  renderAll();
-  showToast(`✅ ${prop.name} (${formatCurrency(info.expected)}) kira tahsilatı onaylandı!`);
+  // Opens the payment modal with today's clicked date pre-filled by default (and editable)
+  openPaymentModal(propId, periodKey, false);
 }
 
 function renderQuickPropertiesBoard(periodKey) {
@@ -1712,7 +1776,7 @@ function renderQuickPropertiesBoard(periodKey) {
     if (isRented) {
       if (info.status === 'paid') {
         rowCls = 'prow-paid';
-        badgeTxt = '✓ Ödendi';
+        badgeTxt = info.payment?.date ? `✓ ${formatDateTR(info.payment.date)}` : '✓ Ödendi';
       } else if (info.status === 'overdue') {
         rowCls = 'prow-overdue';
         badgeTxt = `! Gecikti (Ayın ${info.dueDay}'i)`;
@@ -1733,7 +1797,6 @@ function renderQuickPropertiesBoard(periodKey) {
         <div class="epr-main">
           <div class="epr-title-line">
             <strong class="epr-name">${escapeHtml(cleanTitle)}</strong>
-            <span class="epr-type-tag">${escapeHtml(prop.type)}${prop.rooms ? ' • ' + escapeHtml(prop.rooms) : ''}</span>
           </div>
           <div class="epr-sub-line">
             <span><i class="ph-fill ph-user"></i> ${escapeHtml(isRented ? prop.tenantName : 'Kiracı Atanmadı')}</span>
@@ -1745,7 +1808,7 @@ function renderQuickPropertiesBoard(periodKey) {
         </div>
         <div class="epr-actions" onclick="event.stopPropagation()">
           ${isRented && info.status !== 'paid' ? `
-            <button class="epr-btn pay-pill" onclick="oneTapInstantCollect('${prop.id}', '${periodKey}')" title="Tek Dokunuşla Tam Tahsilat Onayla">
+            <button class="epr-btn pay-pill" onclick="oneTapInstantCollect('${prop.id}', '${periodKey}')" title="Ödeme Tarihi Seçerek Tahsilat Onayla">
               <i class="ph-bold ph-check"></i> Ödendi
             </button>
             <button class="epr-btn whatsapp-mini" onclick="sendReminderWhatsApp('${prop.id}', '${periodKey}')" title="WhatsApp Hatırlatma Gönder">
@@ -2385,9 +2448,10 @@ function renderCollectionsView() {
       container.innerHTML = items.map(({ prop, info }, idx) => {
         const rowCls = info.status === 'paid' ? 'prow-paid' : (info.status === 'overdue' ? 'prow-overdue' : (info.status === 'partial' ? 'prow-partial' : 'prow-pending'));
         const cleanTitle = prop.name.replace(/^\d+\.\s*/, '');
+        const paidDateTxt = info.payment?.date ? ` (${formatDateTR(info.payment.date)})` : '';
         const subMetric = info.status === 'paid'
-          ? `Ödenen: ${formatCurrency(info.paid)}`
-          : (info.paid > 0 ? `Ödenen: ${formatCurrency(info.paid)} • Kalan: ${formatCurrency(info.remaining)}` : `Kalan Alacak: ${formatCurrency(info.remaining)}`);
+          ? `Ödenen: ${formatCurrency(info.paid)}${paidDateTxt}`
+          : (info.paid > 0 ? `Ödenen: ${formatCurrency(info.paid)} • Kalan: ${formatCurrency(info.remaining)}` : `Vade: Ayın ${info.dueDay}'i • Kalan: ${formatCurrency(info.remaining)}`);
 
         return `
           <div class="exec-prop-row slim-row ${rowCls}" onclick="openPaymentModal('${prop.id}', '${periodKey}')">
@@ -2395,7 +2459,6 @@ function renderCollectionsView() {
             <div class="epr-main">
               <div class="epr-title-line">
                 <strong class="epr-name">${escapeHtml(cleanTitle)}</strong>
-                <span class="epr-type-tag">Ayın ${info.dueDay}'i</span>
               </div>
               <div class="epr-sub-line">
                 <span><i class="ph-fill ph-user"></i> ${escapeHtml(prop.tenantName || '-')} • ${subMetric}</span>
@@ -2403,7 +2466,7 @@ function renderCollectionsView() {
             </div>
             <div class="epr-right">
               <strong class="epr-rent">${formatCurrency(info.expected)}</strong>
-              <span class="epr-status-pill">${escapeHtml(info.label)}</span>
+              <span class="epr-status-pill">${info.status === 'paid' && info.payment?.date ? '✓ ' + formatDateTR(info.payment.date) : escapeHtml(info.label)}</span>
             </div>
             <div class="epr-actions" onclick="event.stopPropagation()">
               ${info.status !== 'paid' ? `
@@ -3828,13 +3891,20 @@ function onQuickCollectPropertyChange() {
   openPaymentModal(propId, periodKey, true);
 }
 
+let paymentModalCustomFxEdited = false;
+
 function openPaymentModal(propId, periodKey = getPeriodKey(), showSelector = false) {
   const prop = state.properties.find(p => p.id === propId);
   if (!prop) return;
 
+  paymentModalCustomFxEdited = Boolean(infoHasCustomFx(propId, periodKey));
   document.getElementById('payPropertyId').value = prop.id;
   document.getElementById('payPeriodKey').value = periodKey;
-  document.getElementById('paymentModalTitle').textContent = `${getPeriodTitle(periodKey)} Kira Tahsilatı`;
+
+  const info = getPropertyPeriodStatus(prop, periodKey);
+  document.getElementById('paymentModalTitle').textContent = info.status === 'paid'
+    ? `${getPeriodTitle(periodKey)} Tahsilat Tarihi & Detayı Düzenle`
+    : `${getPeriodTitle(periodKey)} Kira Tahsilatı Gir`;
 
   const selGroup = document.getElementById('payPropertySelectGroup');
   if (selGroup) {
@@ -3849,8 +3919,6 @@ function openPaymentModal(propId, periodKey = getPeriodKey(), showSelector = fal
     }
   }
 
-  const info = getPropertyPeriodStatus(prop, periodKey);
-
   document.getElementById('payPropertyBanner').innerHTML = `
     <div>
       <strong style="font-size:0.9rem; display:block;">${escapeHtml(prop.name)}</strong>
@@ -3858,33 +3926,100 @@ function openPaymentModal(propId, periodKey = getPeriodKey(), showSelector = fal
         ${escapeHtml(prop.tenantName)} • Tahakkuk: ${formatCurrency(info.expected)} • Ödenen: ${formatCurrency(info.paid)}
       </span>
     </div>
-    <span class="status-pill ${info.pillClass}">Kalan: ${formatCurrency(info.remaining)}</span>
+    <span class="status-pill ${info.pillClass}">${info.status === 'paid' ? 'Ödendi' : 'Kalan: ' + formatCurrency(info.remaining)}</span>
   `;
 
   document.getElementById('payAmountInput').value = info.remaining > 0 ? info.remaining : info.expected;
-  const defaultDate = info.payment?.date || new Date().toISOString().slice(0, 10);
+
+  // Default to today's clicked date (or saved payment date if editing an existing payment), always editable!
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const dueDayStr = String(prop.dueDay || 5).padStart(2, '0');
+  const accrualDateIso = `${periodKey}-${dueDayStr}`;
+  const defaultDate = info.payment?.date || todayIso;
+
   document.getElementById('payDateInput').value = defaultDate;
   document.getElementById('payMethodInput').value = info.payment?.method || 'Banka Havale/EFT';
   document.getElementById('payNoteInput').value = info.payment?.note || '';
 
-  const fxNow = info.payment?.fxRates || getHistoricalFxRates(defaultDate);
+  const fxForDate = (info.payment?.customFx && info.payment?.fxRates)
+    ? info.payment.fxRates
+    : getHistoricalFxRates(defaultDate);
+
   const usdEl = document.getElementById('payFxUsdInput');
   const eurEl = document.getElementById('payFxEurInput');
   const xauEl = document.getElementById('payFxXauInput');
-  if (usdEl) usdEl.value = fxNow.USD || 34.50;
-  if (eurEl) eurEl.value = fxNow.EUR || 37.20;
-  if (xauEl) xauEl.value = fxNow.XAU || 3000;
+  if (usdEl) usdEl.value = fxForDate.USD || 34.50;
+  if (eurEl) eurEl.value = fxForDate.EUR || 37.20;
+  if (xauEl) xauEl.value = fxForDate.XAU || 3000;
 
   document.getElementById('quickAmountPills').innerHTML = `
-    <span style="font-size:0.73rem; color:var(--text-muted);">Hızlı Seçim:</span>
-    ${info.remaining > 0 ? `<button type="button" class="rate-pill" onclick="document.getElementById('payAmountInput').value=${info.remaining}">Kalan Tamamı (${formatCurrency(info.remaining)})</button>` : ''}
-    <button type="button" class="rate-pill" onclick="document.getElementById('payAmountInput').value=${Math.round((info.remaining || info.expected) / 2)}">Kısmi (%50: ${formatCurrency(Math.round((info.remaining || info.expected) / 2))})</button>
+    <span style="font-size:0.72rem; color:var(--text-muted);">Hızlı Seçim:</span>
+    ${info.remaining > 0 ? `<button type="button" class="rate-pill" onclick="document.getElementById('payAmountInput').value=${info.remaining}; updatePaymentFxEquivalentPreview();">Tamamı (${formatCurrency(info.remaining)})</button>` : ''}
+    <button type="button" class="rate-pill" onclick="document.getElementById('payAmountInput').value=${Math.round((info.remaining || info.expected) / 2)}; updatePaymentFxEquivalentPreview();">%50 Kısmi</button>
+    <button type="button" class="rate-pill" onclick="setQuickPaymentDate('${todayIso}')">📅 Bugün (${formatDateTR(todayIso)})</button>
+    <button type="button" class="rate-pill" onclick="setQuickPaymentDate('${accrualDateIso}')">🗓️ Tahakkuk (${formatDateTR(accrualDateIso)})</button>
   `;
 
   const cancelBtn = document.getElementById('btnCancelPayment');
   if (cancelBtn) cancelBtn.style.display = info.paid > 0 ? 'inline-flex' : 'none';
 
+  const submitBtn = document.getElementById('btnConfirmPaymentSubmit');
+  if (submitBtn) {
+    submitBtn.innerHTML = info.status === 'paid'
+      ? `<i class="ph-bold ph-floppy-disk"></i> Tarihi & Tahsilatı Güncelle`
+      : `<i class="ph-bold ph-check-circle"></i> Tahsilatı Onayla`;
+  }
+
+  updatePaymentFxEquivalentPreview();
   openModal('paymentModal');
+}
+
+function infoHasCustomFx(propId, periodKey) {
+  const rec = state.payments?.[`${propId}_${periodKey}`];
+  return Boolean(rec && rec.customFx);
+}
+
+function setQuickPaymentDate(isoDate) {
+  const inp = document.getElementById('payDateInput');
+  if (inp) {
+    inp.value = isoDate;
+    paymentModalCustomFxEdited = false;
+    onPayDateInputChange();
+  }
+}
+
+function onPayDateInputChange() {
+  const dateVal = document.getElementById('payDateInput')?.value || new Date().toISOString().slice(0, 10);
+  const fx = getHistoricalFxRates(dateVal);
+  const usdEl = document.getElementById('payFxUsdInput');
+  const eurEl = document.getElementById('payFxEurInput');
+  const xauEl = document.getElementById('payFxXauInput');
+  if (usdEl) usdEl.value = fx.USD || 34.50;
+  if (eurEl) eurEl.value = fx.EUR || 37.20;
+  if (xauEl) xauEl.value = fx.XAU || 3000;
+  paymentModalCustomFxEdited = false;
+  updatePaymentFxEquivalentPreview();
+}
+
+function onPayManualFxInput() {
+  paymentModalCustomFxEdited = true;
+  updatePaymentFxEquivalentPreview();
+}
+
+function updatePaymentFxEquivalentPreview() {
+  const box = document.getElementById('payFxEquivalentPreview');
+  if (!box) return;
+  const amt = Number(document.getElementById('payAmountInput')?.value || 0);
+  const dateVal = document.getElementById('payDateInput')?.value || '';
+  const usd = Math.max(0.01, Number(document.getElementById('payFxUsdInput')?.value || 34.50));
+  const eur = Math.max(0.01, Number(document.getElementById('payFxEurInput')?.value || 37.20));
+  const xau = Math.max(0.01, Number(document.getElementById('payFxXauInput')?.value || 3000));
+
+  const grGold = (amt / xau).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const usdEq = (amt / usd).toLocaleString('tr-TR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const eurEq = (amt / eur).toLocaleString('tr-TR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+  box.innerHTML = `🪙 <strong>${formatDateTR(dateVal)}</strong> Kuruyla Amortisman Karşılığı: <strong>${grGold} Gr Altın</strong> • <strong>${usdEq} $</strong> • <strong>${eurEq} €</strong>`;
 }
 
 function savePaymentForm(e) {
@@ -3896,20 +4031,44 @@ function savePaymentForm(e) {
   if (!prop) return;
 
   const enteredAmount = Number(document.getElementById('payAmountInput').value || 0);
-  const dateVal = document.getElementById('payDateInput').value;
+  const dateVal = document.getElementById('payDateInput').value || new Date().toISOString().slice(0, 10);
   const methodVal = document.getElementById('payMethodInput').value;
   const noteVal = document.getElementById('payNoteInput').value.trim();
 
   const info = getPropertyPeriodStatus(prop, periodKey);
+  const expectedAmount = info.expected || Number(prop.rentAmount || 0);
 
-  // Anti-duplicate guard: Prevent double collection if period is already 100% paid
+  const fxRates = {
+    TRY: 1,
+    USD: Number(document.getElementById('payFxUsdInput')?.value || 34.50),
+    EUR: Number(document.getElementById('payFxEurInput')?.value || 37.20),
+    XAU: Number(document.getElementById('payFxXauInput')?.value || 3000)
+  };
+
+  // If already paid, allow updating the payment date, FX rates, amount, method, and note directly!
   if (info.status === 'paid') {
-    alert(`MÜKERRER TAHSİLAT KORUMASI:\n${prop.name} taşınmazının ${getPeriodTitle(periodKey)} dönemi kirası zaten tam olarak (${formatCurrency(info.paid)}) tahsil edilmiştir.\n\nDüzeltme yapmak için önce mevcut tahsilatı iptal edebilir veya "Toplu Tahsilat" ile sonraki aylara dağıtabilirsiniz.`);
+    state.payments[`${propId}_${periodKey}`] = {
+      paidAmount: enteredAmount,
+      expectedAmount,
+      date: dateVal,
+      dateExplicit: true,
+      customFx: paymentModalCustomFxEdited,
+      method: methodVal,
+      note: noteVal,
+      tenantId: prop.tenantId,
+      fxRates
+    };
+    saveState();
+    closeModal('paymentModal');
+    renderAll();
+    if (document.getElementById('detailModal')?.classList.contains('open')) {
+      openPropertyDetailModal(propId);
+    }
+    showToast(`✅ ${prop.name} ödeme tarihi (${formatDateTR(dateVal)}) ve kur bilgileri güncellendi!`);
     return;
   }
 
   const newTotalPaid = info.paid + enteredAmount;
-  const expectedAmount = info.expected || Number(prop.rentAmount || 0);
 
   if (newTotalPaid > expectedAmount) {
     if (!confirm(`Girilen tutar (${formatCurrency(enteredAmount)}) ile toplam ödeme (${formatCurrency(newTotalPaid)}), dönem tahakkuku olan ${formatCurrency(expectedAmount)} tutarını aşıyor. Fazla kısmı sonraki aylara otomatik dağıtmak ister misiniz?`)) {
@@ -3920,17 +4079,12 @@ function savePaymentForm(e) {
     return;
   }
 
-  const fxRates = {
-    TRY: 1,
-    USD: Number(document.getElementById('payFxUsdInput')?.value || 34.50),
-    EUR: Number(document.getElementById('payFxEurInput')?.value || 37.20),
-    XAU: Number(document.getElementById('payFxXauInput')?.value || 3000)
-  };
-
   state.payments[`${propId}_${periodKey}`] = {
     paidAmount: newTotalPaid,
     expectedAmount,
     date: dateVal,
+    dateExplicit: true,
+    customFx: paymentModalCustomFxEdited,
     method: methodVal,
     note: noteVal,
     tenantId: prop.tenantId,
@@ -3947,7 +4101,7 @@ function savePaymentForm(e) {
     amount: enteredAmount,
     method: methodVal,
     actionType: newTotalPaid >= expectedAmount ? 'TAM TAHSİLAT' : 'KISMİ TAHSİLAT',
-    note: noteVal || (newTotalPaid < expectedAmount ? `Kalan borç: ${formatCurrency(expectedAmount - newTotalPaid)}` : 'Dönem borcu kapandı')
+    note: noteVal || (newTotalPaid < expectedAmount ? `Kalan borç: ${formatCurrency(expectedAmount - newTotalPaid)}` : `Ödeme Tarihi: ${formatDateTR(dateVal)}`)
   });
 
   saveState();
@@ -3956,7 +4110,7 @@ function savePaymentForm(e) {
   if (document.getElementById('detailModal').classList.contains('open')) {
     openPropertyDetailModal(propId);
   }
-  showToast(`${prop.name} için ${formatCurrency(enteredAmount)} tahsilat kaydedildi 💰`);
+  showToast(`${prop.name} için ${formatCurrency(enteredAmount)} (${formatDateTR(dateVal)}) tahsilat kaydedildi 💰`);
 }
 
 function reverseMonthPayment() {
@@ -3996,6 +4150,8 @@ function openBulkPaymentModal() {
   ).join('');
   document.getElementById('bulkPayStartMonth').value = getPeriodKey();
   document.getElementById('bulkPayTotalAmount').value = '';
+  const dateInp = document.getElementById('bulkPayDateInput');
+  if (dateInp) dateInp.value = new Date().toISOString().slice(0, 10);
   openModal('bulkPaymentModal');
 }
 
@@ -4009,9 +4165,9 @@ function saveBulkPaymentForm(e) {
   const startPeriod = document.getElementById('bulkPayStartMonth').value || getPeriodKey();
   const method = document.getElementById('bulkPayMethod').value;
   const note = document.getElementById('bulkPayNote').value.trim() || 'Toplu Kira Dağıtımı';
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const chosenDate = document.getElementById('bulkPayDateInput')?.value || new Date().toISOString().slice(0, 10);
 
-  distributeBulkPayment(prop, startPeriod, totalAmount, todayIso, method, note);
+  distributeBulkPayment(prop, startPeriod, totalAmount, chosenDate, method, note);
   closeModal('bulkPaymentModal');
 }
 
@@ -4019,6 +4175,7 @@ function distributeBulkPayment(prop, startPeriodKey, totalPool, dateStr, method,
   let pool = Number(totalPool || 0);
   let [y, m] = startPeriodKey.split('-').map(Number);
   let affectedMonths = 0;
+  const fxRates = getHistoricalFxRates(dateStr);
 
   while (pool > 0 && affectedMonths < 24) {
     const pKey = getPeriodKey(y, m);
@@ -4032,6 +4189,8 @@ function distributeBulkPayment(prop, startPeriodKey, totalPool, dateStr, method,
         paidAmount: newPaid,
         expectedAmount: info.expected,
         date: dateStr,
+        dateExplicit: true,
+        fxRates,
         method,
         note: `${note} (Toplu ödeme dağılımı)`,
         tenantId: prop.tenantId
