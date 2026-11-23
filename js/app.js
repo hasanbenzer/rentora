@@ -4,10 +4,20 @@
    ========================================================================== */
 
 const STORAGE_KEY = 'rentora_enterprise_v2';
+const MEMBERS_REGISTRY_KEY = 'rentora_members_registry_v1';
+const ACTIVE_SESSION_KEY = 'rentora_active_member_session_v1';
+const CURRENT_APP_VERSION = '1.2.0';
 const AUTH_GATE_STORAGE_KEY = 'rentora_device_auth_token_v1';
 const AUTH_EXPECTED_SHA256 = '7a29b5e673caa030731ebf304028832c0d4617404f395950cb64a2f80dbc0ae6';
 const LEGACY_KEYS = ['rentora_enterprise_v1', 'avigen_kira_takip_v1'];
 const APP_SCHEMA_VERSION = 3;
+
+const LICENSE_PLANS = {
+  TRIAL: { code: 'TRIAL', name: '30 Günlük Ücretsiz Deneme', maxProps: 5, badge: '🎁 Deneme' },
+  IND5:  { code: 'IND5',  name: 'Bireysel Paket (5 Mülk)', maxProps: 5, badge: '🏠 Bireysel' },
+  PRO15: { code: 'PRO15', name: 'Portföy Paketi (15 Mülk)', maxProps: 15, badge: '🏢 Portföy' },
+  UNL:   { code: 'UNL',   name: 'Kurumsal Sınırsız Paket', maxProps: 9999, badge: '👑 Kurumsal Sınırsız' }
+};
 const MONTHS_TR = [
   'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
   'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
@@ -45,6 +55,7 @@ let portfolioSubTab = 'properties';
 let propertyTypeFilter = 'all';
 let tenantFilter = 'all';
 let collectionFilter = 'all';
+let homePropertyFilter = 'all';
 let ledgerFilter = 'all';
 let activeMgmtSub = 'assistant';
 
@@ -127,12 +138,419 @@ async function computeSha256Hex(message) {
 function checkLicenseAuthGateOnStartup() {
   const gate = document.getElementById('licenseAuthGateOverlay');
   if (!gate) return;
+  const activeSession = getActiveMemberSession();
   const savedToken = localStorage.getItem(AUTH_GATE_STORAGE_KEY);
-  if (savedToken === AUTH_EXPECTED_SHA256) {
+  if (activeSession || savedToken === AUTH_EXPECTED_SHA256) {
+    if (!activeSession && savedToken === AUTH_EXPECTED_SHA256) {
+      ensureDefaultMasterMemberSession();
+    }
     gate.style.display = 'none';
   } else {
     gate.style.display = 'flex';
   }
+}
+
+function getMembersRegistry() {
+  try {
+    const raw = localStorage.getItem(MEMBERS_REGISTRY_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveMembersRegistry(list) {
+  localStorage.setItem(MEMBERS_REGISTRY_KEY, JSON.stringify(list));
+}
+
+function getActiveMemberSession() {
+  try {
+    const raw = localStorage.getItem(ACTIVE_SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function getActiveUserStorageKey() {
+  const sess = getActiveMemberSession();
+  if (sess && sess.storageKey) return sess.storageKey;
+  return STORAGE_KEY;
+}
+
+function ensureDefaultMasterMemberSession() {
+  const list = getMembersRegistry();
+  let master = list.find(m => m.id === 'member_master');
+  const exp = new Date();
+  exp.setFullYear(exp.getFullYear() + 10);
+  if (!master) {
+    master = {
+      id: 'member_master',
+      fullName: state.owner?.name || 'Yönetici Portföyü',
+      email: 'yonetici@rentora.app',
+      phone: state.owner?.phone || '',
+      passwordHash: AUTH_EXPECTED_SHA256,
+      planCode: 'UNL',
+      licenseKey: 'RNT-UNL-3650-MASTER',
+      createdAt: new Date().toISOString().slice(0, 10),
+      expiresAt: exp.toISOString().slice(0, 10),
+      isMasterAdmin: true,
+      storageKey: STORAGE_KEY
+    };
+    list.push(master);
+    saveMembersRegistry(list);
+  }
+  localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(master));
+  return master;
+}
+
+function switchAuthMode(mode) {
+  const loginForm = document.getElementById('authLoginForm');
+  const regForm = document.getElementById('authRegisterForm');
+  document.getElementById('authTabLoginBtn')?.classList.toggle('active', mode === 'login');
+  document.getElementById('authTabRegisterBtn')?.classList.toggle('active', mode === 'register');
+  if (loginForm) loginForm.style.display = mode === 'login' ? 'flex' : 'none';
+  if (regForm) regForm.style.display = mode === 'register' ? 'flex' : 'none';
+}
+
+async function handleMemberLogin(e) {
+  e.preventDefault();
+  const idVal = (document.getElementById('loginIdentifierInput')?.value || '').trim();
+  const pwVal = (document.getElementById('loginPasswordInput')?.value || '').trim();
+  const errEl = document.getElementById('licenseAuthErrorMsg');
+
+  // Check if user entered Master Code 88254716 directly in the login box
+  const candidateMaster = await computeSha256Hex(`RENTORA_AUTH_${idVal}_SALT`);
+  const candidatePwMaster = await computeSha256Hex(`RENTORA_AUTH_${pwVal}_SALT`);
+  if (candidateMaster === AUTH_EXPECTED_SHA256 || candidatePwMaster === AUTH_EXPECTED_SHA256) {
+    localStorage.setItem(AUTH_GATE_STORAGE_KEY, AUTH_EXPECTED_SHA256);
+    ensureDefaultMasterMemberSession();
+    document.getElementById('licenseAuthGateOverlay').style.display = 'none';
+    await loadState();
+    renderAll();
+    showToast('👑 Yönetici Kurumsal Lisansı ile giriş yapıldı!');
+    return;
+  }
+
+  const list = getMembersRegistry();
+  const pwHash = await computeSha256Hex(`RENTORA_PW_${pwVal}`);
+  const found = list.find(m =>
+    (m.email.toLocaleLowerCase('tr-TR') === idVal.toLocaleLowerCase('tr-TR') ||
+     m.fullName.toLocaleLowerCase('tr-TR') === idVal.toLocaleLowerCase('tr-TR')) &&
+    m.passwordHash === pwHash
+  );
+
+  if (!found) {
+    if (errEl) errEl.textContent = 'E-posta/kullanıcı adı veya şifre hatalı! Yeni üyeyseniz "Yeni Üye Ol" sekmesini kullanın.';
+    return;
+  }
+
+  localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(found));
+  document.getElementById('licenseAuthGateOverlay').style.display = 'none';
+  if (errEl) errEl.textContent = '';
+  await loadState();
+  renderAll();
+  showToast(`Hoş geldiniz, ${found.fullName} 👋`);
+}
+
+async function handleMemberRegister(e) {
+  e.preventDefault();
+  const fullName = (document.getElementById('regFullNameInput')?.value || '').trim();
+  const email = (document.getElementById('regEmailInput')?.value || '').trim();
+  const phone = (document.getElementById('regPhoneInput')?.value || '').trim();
+  const pw = (document.getElementById('regPasswordInput')?.value || '').trim();
+  const licKey = (document.getElementById('regLicenseKeyInput')?.value || '').trim().toUpperCase();
+  const errEl = document.getElementById('registerErrorMsg');
+
+  if (pw.length < 4) {
+    if (errEl) errEl.textContent = 'Şifreniz en az 4 karakter olmalıdır.';
+    return;
+  }
+
+  const list = getMembersRegistry();
+  if (list.some(m => m.email.toLocaleLowerCase('tr-TR') === email.toLocaleLowerCase('tr-TR'))) {
+    if (errEl) errEl.textContent = 'Bu e-posta / kullanıcı adı zaten kayıtlı! Giriş Yap sekmesini kullanın.';
+    return;
+  }
+
+  let planCode = 'TRIAL';
+  let durationDays = 30;
+  let appliedKey = 'DENEME-30GUN';
+
+  if (licKey) {
+    const parsedLic = await verifyRentoraLicenseKeyString(licKey);
+    if (!parsedLic.valid) {
+      if (errEl) errEl.textContent = 'Girilen lisans anahtarı geçersiz! Boş bırakarak 30 günlük ücretsiz deneme başlatabilirsiniz.';
+      return;
+    }
+    planCode = parsedLic.planCode;
+    durationDays = parsedLic.days;
+    appliedKey = licKey;
+  }
+
+  const nowD = new Date();
+  const expD = new Date();
+  expD.setDate(expD.getDate() + durationDays);
+  const pwHash = await computeSha256Hex(`RENTORA_PW_${pw}`);
+  const memberId = 'mem_' + Date.now();
+  // First registered member uses main storage if empty, subsequent members get isolated storage key
+  const useMainKey = list.length === 0;
+
+  const newMember = {
+    id: memberId,
+    fullName,
+    email,
+    phone,
+    passwordHash: pwHash,
+    planCode,
+    licenseKey: appliedKey,
+    createdAt: nowD.toISOString().slice(0, 10),
+    expiresAt: expD.toISOString().slice(0, 10),
+    isMasterAdmin: false,
+    storageKey: useMainKey ? STORAGE_KEY : `${STORAGE_KEY}_${memberId}`
+  };
+
+  list.push(newMember);
+  saveMembersRegistry(list);
+  localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(newMember));
+  localStorage.setItem(AUTH_GATE_STORAGE_KEY, AUTH_EXPECTED_SHA256);
+
+  // Set owner name & phone automatically
+  await loadState();
+  state.owner.name = fullName;
+  state.owner.phone = phone;
+  saveState();
+
+  document.getElementById('licenseAuthGateOverlay').style.display = 'none';
+  renderAll();
+  showToast(`🎉 Üyeliğiniz oluşturuldu! (${LICENSE_PLANS[planCode]?.name || '30 Gün Deneme'})`);
+}
+
+function logoutCurrentMember() {
+  if (!confirm('Oturumunuzu kapatmak istediğinize emin misiniz? (Verileriniz cihazınızda güvenle saklanır)')) return;
+  localStorage.removeItem(ACTIVE_SESSION_KEY);
+  localStorage.removeItem(AUTH_GATE_STORAGE_KEY);
+  const gate = document.getElementById('licenseAuthGateOverlay');
+  if (gate) gate.style.display = 'flex';
+  showToast('Oturum kapatıldı');
+}
+
+// ==================== CRYPTOGRAPHIC LICENSE KEY GENERATOR & VERIFIER ====================
+
+async function createLicenseSignatureHex(planCode, days, saltCode) {
+  const payload = `RENTORA_LIC_V1_${planCode}_${days}_${saltCode}_88254716`;
+  const fullHash = await computeSha256Hex(payload);
+  return fullHash.slice(0, 6).toUpperCase();
+}
+
+async function verifyRentoraLicenseKeyString(keyStr) {
+  const clean = String(keyStr || '').trim().toUpperCase();
+  // Format: RNT-{PLAN}-{DAYS}-{SALT4}-{SIG6}
+  const parts = clean.split('-');
+  if (parts.length !== 5 || parts[0] !== 'RNT') return { valid: false };
+  const [, planCode, daysStr, saltCode, sigHex] = parts;
+  const days = Number(daysStr);
+  if (!LICENSE_PLANS[planCode] || !days || days <= 0) return { valid: false };
+
+  const expectedSig = await createLicenseSignatureHex(planCode, days, saltCode);
+  if (sigHex !== expectedSig) return { valid: false };
+  return { valid: true, planCode, days };
+}
+
+function getCurrentLicenseEvaluation() {
+  let sess = getActiveMemberSession();
+  if (!sess) {
+    sess = ensureDefaultMasterMemberSession();
+  }
+  const plan = LICENSE_PLANS[sess.planCode] || LICENSE_PLANS.TRIAL;
+  const today = new Date();
+  const exp = new Date(sess.expiresAt || today);
+  const remainingDays = Math.ceil((exp - today) / (1000 * 60 * 60 * 24));
+  const isExpired = remainingDays < 0;
+
+  return {
+    member: sess,
+    plan,
+    remainingDays,
+    isExpired,
+    maxProps: plan.maxProps
+  };
+}
+
+function checkLicenseWritePermission(isAddingNewProperty = false) {
+  const ev = getCurrentLicenseEvaluation();
+  if (ev.isExpired) {
+    alert(`⚠️ LİSANS / DENEME SÜRENİZ DOLDU!\n\nSayın ${ev.member.fullName}, ${ev.plan.name} kullanım süreniz (${formatDateTR(ev.member.expiresAt)}) sona ermiştir.\n\nVerileriniz silinmemiştir (salt-okunur moddasınız). Yeni kayıt veya tahsilat girmek için lütfen "Belgeler -> 👑 Üyelik, Lisans & Güncelleme" ekranından aylık/yıllık lisans anahtarınızı etkinleştirin.`);
+    switchTab('documents');
+    switchSubManagement('license');
+    return false;
+  }
+  if (isAddingNewProperty && state.properties.length >= ev.maxProps) {
+    alert(`⚠️ PAKET GAYRİMENKUL LİMİTİ DOLDU!\n\nMevcut paketiniz (${ev.plan.name}) en fazla ${ev.maxProps} gayrimenkul desteklemektedir.\n\nDaha fazla gayrimenkul eklemek için lütfen Portföy (15 Mülk) veya Kurumsal Sınırsız pakete yükseltin.`);
+    switchTab('documents');
+    switchSubManagement('license');
+    return false;
+  }
+  return true;
+}
+
+async function activateMemberLicenseKey(e) {
+  e.preventDefault();
+  const inp = document.getElementById('activateLicenseKeyInput');
+  const keyStr = (inp?.value || '').trim().toUpperCase();
+  const res = await verifyRentoraLicenseKeyString(keyStr);
+
+  if (!res.valid) {
+    alert('❌ Geçersiz Lisans Anahtarı! Lütfen RNT-... ile başlayan lisans kodunuzu kontrol edin.');
+    return;
+  }
+
+  const sess = getActiveMemberSession() || ensureDefaultMasterMemberSession();
+  const exp = new Date();
+  exp.setDate(exp.getDate() + res.days);
+
+  sess.planCode = res.planCode;
+  sess.licenseKey = keyStr;
+  sess.expiresAt = exp.toISOString().slice(0, 10);
+
+  localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(sess));
+  const list = getMembersRegistry();
+  const idx = list.findIndex(m => m.id === sess.id);
+  if (idx >= 0) {
+    list[idx] = sess;
+    saveMembersRegistry(list);
+  }
+
+  if (inp) inp.value = '';
+  renderAll();
+  showToast(`🎉 ${LICENSE_PLANS[res.planCode].name} (${res.days} Gün) başarıyla etkinleştirildi!`);
+}
+
+async function toggleVendorKeygenPanel() {
+  const box = document.getElementById('vendorKeygenBody');
+  if (!box) return;
+  if (box.style.display === 'block') {
+    box.style.display = 'none';
+    return;
+  }
+  const code = prompt('Satıcı / Yönetici Lisans Üretici Paneline erişmek için Yönetici Şifresini girin:');
+  if (!code) return;
+  const digest = await computeSha256Hex(`RENTORA_AUTH_${code.trim()}_SALT`);
+  if (digest === AUTH_EXPECTED_SHA256 || code.trim() === String(44127358 * 2)) {
+    box.style.display = 'block';
+    showToast('🔓 Satıcı Lisans Üretici Paneli Açıldı');
+  } else {
+    alert('Yetkisiz erişim! Yönetici şifresi hatalı.');
+  }
+}
+
+async function generateVendorLicenseKey() {
+  const planCode = document.getElementById('kgPlanSelect')?.value || 'PRO15';
+  const days = Number(document.getElementById('kgDurationSelect')?.value || 365);
+  const salt4 = Math.random().toString(36).substring(2, 6).toUpperCase().padEnd(4, 'X');
+  const sig6 = await createLicenseSignatureHex(planCode, days, salt4);
+  const finalKey = `RNT-${planCode}-${days}-${salt4}-${sig6}`;
+
+  const resBox = document.getElementById('kgResultBox');
+  const txtEl = document.getElementById('kgGeneratedKeyText');
+  if (txtEl) txtEl.textContent = finalKey;
+  if (resBox) resBox.style.display = 'flex';
+  showToast('✨ İmzalı müşteri lisans anahtarı üretildi!');
+}
+
+function copyGeneratedLicenseKey() {
+  const k = document.getElementById('kgGeneratedKeyText')?.textContent || '';
+  if (!k) return;
+  navigator.clipboard?.writeText(k);
+  showToast('Lisans anahtarı kopyalandı 📋');
+}
+
+function applyGeneratedKeyToSelf() {
+  const k = document.getElementById('kgGeneratedKeyText')?.textContent || '';
+  const inp = document.getElementById('activateLicenseKeyInput');
+  if (inp && k) {
+    inp.value = k;
+    activateMemberLicenseKey(new Event('submit'));
+  }
+}
+
+async function checkAndApplyInAppUpdate() {
+  const titleEl = document.getElementById('updateCheckTitle');
+  const descEl = document.getElementById('updateCheckDesc');
+  if (titleEl) titleEl.textContent = '🔄 GitHub üzerinden yeni sürüm denetleniyor...';
+
+  try {
+    const res = await fetch(`https://raw.githubusercontent.com/hasanbenzer/rentora/main/VERSION?t=${Date.now()}`, { cache: 'no-store' });
+    if (res.ok) {
+      const remoteVer = (await res.text()).trim();
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        for (const r of regs) await r.update();
+      }
+      if (remoteVer && remoteVer !== CURRENT_APP_VERSION) {
+        if (titleEl) titleEl.textContent = `✨ Yeni Sürüm Bulundu (v${remoteVer}) — Yükleniyor...`;
+        showToast(`Yeni sürüm (v${remoteVer}) indirildi! Verileriniz korunarak yenileniyor...`);
+        setTimeout(() => window.location.reload(), 1200);
+        return;
+      }
+    }
+  } catch (e) {}
+
+  if (titleEl) titleEl.textContent = `✅ En Güncel RENTORA Sürümündesiniz (v${CURRENT_APP_VERSION})`;
+  if (descEl) descEl.textContent = `Son denetim: ${new Date().toLocaleTimeString('tr-TR')} • Tüm gayrimenkul ve tahsilat verileriniz koruma altında.`;
+  showToast(`RENTORA v${CURRENT_APP_VERSION} güncel! Verileriniz güvende ✅`);
+}
+
+function renderLicenseAndMembershipView() {
+  const ev = getCurrentLicenseEvaluation();
+  const banner = document.getElementById('licenseBannerBar');
+  if (banner) {
+    if (ev.isExpired) {
+      banner.style.display = 'flex';
+      banner.className = 'license-top-banner expired no-print';
+      banner.innerHTML = `<i class="ph-fill ph-warning-octagon"></i> <span><strong>Lisans Süreniz Doldu!</strong> Salt-okunur moddasınız. Yenilemek için dokunun.</span>`;
+    } else if (ev.remainingDays <= 7) {
+      banner.style.display = 'flex';
+      banner.className = 'license-top-banner warning no-print';
+      banner.innerHTML = `<i class="ph-fill ph-clock-countdown"></i> <span><strong>${ev.plan.name}</strong> bitimine <strong>${ev.remainingDays} gün</strong> kaldı. Uzatmak için dokunun.</span>`;
+    } else {
+      banner.style.display = 'none';
+    }
+  }
+
+  const box = document.getElementById('licenseStatusHeroBox');
+  if (!box) return;
+
+  const usedProps = state.properties.length;
+  const maxLabel = ev.maxProps > 1000 ? 'Sınırsız' : `${ev.maxProps} Mülk`;
+  const statusBadge = ev.isExpired
+    ? `<span class="status-pill pill-overdue">Süresi Doldu (Salt-Okunur)</span>`
+    : `<span class="status-pill pill-paid">Aktif • ${ev.remainingDays > 1000 ? 'Sınırsız Lisans' : ev.remainingDays + ' Gün Kaldı'}</span>`;
+
+  box.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+      <div>
+        <span style="font-size:0.7rem; font-weight:800; color:#00a878; text-transform:uppercase;">AKTİF ÜYE & ABONELİK PAKETİ</span>
+        <h4 style="font-size:1.05rem; font-weight:800; margin:2px 0;">${escapeHtml(ev.member.fullName)} (${escapeHtml(ev.plan.name)})</h4>
+        <span style="font-size:0.75rem; color:var(--text-muted);">${escapeHtml(ev.member.email)} • Lisans Kodu: <strong>${escapeHtml(ev.member.licenseKey || 'DENEME')}</strong></span>
+      </div>
+      ${statusBadge}
+    </div>
+    <div class="ledger-summary-row" style="margin-bottom:0;">
+      <div class="ledger-box">
+        <span class="l-label">Mülk Kapasitesi</span>
+        <strong class="l-val">${usedProps} / ${maxLabel}</strong>
+      </div>
+      <div class="ledger-box income">
+        <span class="l-label">Lisans Bitiş Tarihi</span>
+        <strong class="l-val">${formatDateTR(ev.member.expiresAt)}</strong>
+      </div>
+      <div class="ledger-box net">
+        <span class="l-label">Kalan Süre</span>
+        <strong class="l-val">${ev.isExpired ? '0 Gün (Doldu)' : (ev.remainingDays > 1000 ? 'Ömür Boyu' : ev.remainingDays + ' Gün')}</strong>
+      </div>
+    </div>
+  `;
 }
 
 async function verifyLicenseAuthCode(e) {
@@ -160,9 +578,12 @@ async function verifyLicenseAuthCode(e) {
 
   if (digest === AUTH_EXPECTED_SHA256 || digest === expectedFallback) {
     localStorage.setItem(AUTH_GATE_STORAGE_KEY, AUTH_EXPECTED_SHA256);
+    ensureDefaultMasterMemberSession();
     const gate = document.getElementById('licenseAuthGateOverlay');
     if (gate) gate.style.display = 'none';
     if (err) err.textContent = '';
+    await loadState();
+    renderAll();
     showToast('Cihaz başarıyla yetkilendirildi! Hoş geldiniz 🔓');
   } else {
     if (err) err.textContent = 'Geçersiz Kurulum Yetki Şifresi! Erişim reddedildi.';
@@ -171,9 +592,9 @@ async function verifyLicenseAuthCode(e) {
 }
 
 async function loadState() {
-  // 1. Auto-cleanup one-time clean production flag if fresh install or migrate from legacy keys
-  let raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) {
+  const activeKey = getActiveUserStorageKey();
+  let raw = localStorage.getItem(activeKey);
+  if (!raw && activeKey === STORAGE_KEY) {
     for (const oldKey of LEGACY_KEYS) {
       const legacyRaw = localStorage.getItem(oldKey);
       if (legacyRaw) {
@@ -186,7 +607,6 @@ async function loadState() {
   if (raw) {
     try {
       const parsed = JSON.parse(raw);
-      // Clean out auto-seeded demo data once when transitioning to clean production v1.0.0
       if (parsed.seeded10PortfolioV3 && !parsed.userModifiedData && !parsed.cleanProdMigratedV1) {
         state.cleanProdMigratedV1 = true;
         saveState();
@@ -194,20 +614,25 @@ async function loadState() {
         state = migrateAndNormalizeState(parsed);
       }
     } catch (e) {}
+  } else {
+    // Fresh isolated state for newly registered secondary member
+    state = migrateAndNormalizeState({ properties: [], tenants: [], payments: {}, paymentAuditLog: [], expenses: [], increaseHistory: [], savedDocuments: [] });
   }
 
-  try {
-    const res = await fetch('/api/data', { cache: 'no-store' });
-    if (res.ok) {
-      const srv = await res.json();
-      if (srv && Array.isArray(srv.properties) && srv.properties.length > 0) {
-        if (!state.properties.length || (srv.updatedAt || 0) > (state.updatedAt || 0)) {
-          state = migrateAndNormalizeState(srv);
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  if (activeKey === STORAGE_KEY) {
+    try {
+      const res = await fetch('/api/data', { cache: 'no-store' });
+      if (res.ok) {
+        const srv = await res.json();
+        if (srv && Array.isArray(srv.properties) && srv.properties.length > 0) {
+          if (!state.properties.length || (srv.updatedAt || 0) > (state.updatedAt || 0)) {
+            state = migrateAndNormalizeState(srv);
+            localStorage.setItem(activeKey, JSON.stringify(state));
+          }
         }
       }
-    }
-  } catch (e) {}
+    } catch (e) {}
+  }
 
   ensureCurrencyAcquisitionDefaults();
 }
@@ -419,12 +844,15 @@ function saveState(markUserModified = true) {
   state.cleanProdMigratedV1 = true;
   state.schemaVersion = APP_SCHEMA_VERSION;
   state.updatedAt = Date.now();
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  fetch('/api/data', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(state)
-  }).catch(() => {});
+  const activeKey = getActiveUserStorageKey();
+  localStorage.setItem(activeKey, JSON.stringify(state));
+  if (activeKey === STORAGE_KEY) {
+    fetch('/api/data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(state)
+    }).catch(() => {});
+  }
 }
 
 function resetTo10PropertyDemoConfirm() {
@@ -1047,9 +1475,15 @@ function computePeriodFinancials(periodKey = getPeriodKey()) {
 // ==================== MASTER RENDER ====================
 
 function renderAll() {
+  const ev = getCurrentLicenseEvaluation();
   const sub = document.getElementById('ownerHeaderSub');
-  if (sub && state.owner?.name) sub.textContent = state.owner.name;
+  if (sub) {
+    const ownerLabel = state.owner?.name || ev.member?.fullName || 'Gayrimenkul Yönetimi';
+    const remTxt = ev.isExpired ? 'Süre Doldu' : (ev.remainingDays > 1000 ? 'Sınırsız Lisans' : `${ev.remainingDays}g Kaldı`);
+    sub.textContent = `${ownerLabel} • ${ev.plan.badge} (${remTxt})`;
+  }
 
+  renderLicenseAndMembershipView();
   renderDashboard();
   renderPropertiesView();
   renderTenantsView();
@@ -1150,29 +1584,92 @@ function renderHomeDualExecutiveCharts(periodKey, fin) {
   const roiBox = document.getElementById('homeBreakevenRoiChart');
   const roiBadge = document.getElementById('homeRoiChartBadge');
   if (roiBox) {
-    const statsList = state.properties.map(p => ({ p, st: computePropertyBreakevenStats(p) }));
-    const avgPct = statsList.length > 0
-      ? Math.round(statsList.reduce((s, x) => s + x.st.amortPct, 0) / statsList.length)
-      : 0;
-    if (roiBadge) roiBadge.textContent = `Ort. %${avgPct} Amorti`;
+    if (!state.properties || state.properties.length === 0) {
+      if (roiBadge) roiBadge.textContent = 'TL / $ / € / Altın';
+      roiBox.innerHTML = `
+        <div style="font-size:0.73rem; color:var(--text-muted); padding:6px 0; line-height:1.45;">
+          Mülklerinizin edinim maliyetini <strong>Dolar, Euro, Gram Altın veya TL</strong> olarak girdiğinizde kaç yılda amorti edeceği burada grafiklenir.
+        </div>
+      `;
+    } else {
+      const statsList = state.properties.map(p => ({ p, st: computePropertyBreakevenStats(p) }));
+      const avgPct = Math.round(statsList.reduce((s, x) => s + x.st.amortPct, 0) / statsList.length);
+      if (roiBadge) roiBadge.textContent = `Ort. %${avgPct} Amorti`;
 
-    const top3 = [...statsList].sort((a, b) => b.st.amortPct - a.st.amortPct).slice(0, 3);
-    roiBox.innerHTML = `
-      <div class="hmc-roi-list">
-        ${top3.map(({ p, st }) => `
-          <div class="hmc-roi-item">
-            <div class="hmc-roi-top">
-              <span class="hmc-roi-name">${escapeHtml(p.name.replace(/^\d+\.\s*/, ''))} (${st.cur})</span>
-              <strong>%${st.amortPct} • ${st.remainingMonths > 0 ? (st.remainingMonths / 12).toFixed(1) + ' Yıl Kaldı' : 'Amorti Etti!'}</strong>
+      const top3 = [...statsList].sort((a, b) => b.st.amortPct - a.st.amortPct).slice(0, 3);
+      roiBox.innerHTML = `
+        <div class="hmc-roi-list">
+          ${top3.map(({ p, st }) => `
+            <div class="hmc-roi-item">
+              <div class="hmc-roi-top">
+                <span class="hmc-roi-name">${escapeHtml(p.name.replace(/^\d+\.\s*/, ''))} (${st.cur})</span>
+                <strong>%${st.amortPct} • ${st.remainingMonths > 0 ? (st.remainingMonths / 12).toFixed(1) + ' Yıl Kaldı' : 'Amorti Etti!'}</strong>
+              </div>
+              <div class="hmc-roi-track">
+                <div class="hmc-roi-fill" style="width:${st.amortPct}%"></div>
+              </div>
             </div>
-            <div class="hmc-roi-track">
-              <div class="hmc-roi-fill" style="width:${st.amortPct}%"></div>
-            </div>
-          </div>
-        `).join('')}
-      </div>
-    `;
+          `).join('')}
+        </div>
+      `;
+    }
   }
+}
+
+function setHomeFilter(hf) {
+  homePropertyFilter = hf;
+  document.querySelectorAll('#homeKpiFilterStrip .kpi-pill[data-hfilter]').forEach(el => {
+    el.classList.toggle('active-kpi', el.getAttribute('data-hfilter') === hf);
+  });
+  const titleEl = document.getElementById('homeListHeaderTitle');
+  if (titleEl) {
+    if (hf === 'paid') titleEl.innerHTML = `<i class="ph-fill ph-check-circle"></i> Bu Ay Kirasını Ödeyen Mülkler`;
+    else if (hf === 'overdue') titleEl.innerHTML = `<i class="ph-fill ph-warning-circle"></i> Ödemesi Bekleyen / Geciken Mülkler`;
+    else titleEl.innerHTML = `<i class="ph-fill ph-buildings"></i> Gayrimenkullerim & Bu Ayki Durum`;
+  }
+  renderQuickPropertiesBoard(getPeriodKey());
+}
+
+function oneTapInstantCollect(propId, periodKey = getPeriodKey()) {
+  if (!checkLicenseWritePermission(false)) return;
+  const prop = state.properties.find(p => p.id === propId);
+  if (!prop) return;
+  const info = getPropertyPeriodStatus(prop, periodKey);
+  if (info.status === 'paid') {
+    openPaymentModal(propId, periodKey);
+    return;
+  }
+
+  // Ask quick confirmation for 1-second full collection, or let user open detailed modal for partial payment
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const fxRates = getCurrentLiveFxRates();
+
+  state.payments[`${propId}_${periodKey}`] = {
+    paidAmount: info.expected,
+    expectedAmount: info.expected,
+    date: todayIso,
+    method: 'Banka Havale/EFT',
+    note: 'Ana ekrandan tek dokunuşla tam tahsilat',
+    tenantId: prop.tenantId,
+    fxRates
+  };
+
+  state.paymentAuditLog.unshift({
+    id: 'aud_' + Date.now(),
+    timestamp: `${todayIso} ${new Date().toTimeString().slice(0, 5)}`,
+    propertyId: prop.id,
+    propertyName: prop.name,
+    tenantName: prop.tenantName,
+    periodKey,
+    amount: info.expected,
+    method: 'Banka Havale/EFT',
+    actionType: 'HIZLI TAM TAHSİLAT',
+    note: 'Ana ekrandan tek tuşla onaylandı'
+  });
+
+  saveState();
+  renderAll();
+  showToast(`✅ ${prop.name} (${formatCurrency(info.expected)}) kira tahsilatı onaylandı!`);
 }
 
 function renderQuickPropertiesBoard(periodKey) {
@@ -1181,20 +1678,55 @@ function renderQuickPropertiesBoard(periodKey) {
 
   if (!state.properties || state.properties.length === 0) {
     box.innerHTML = `
-      <div class="empty-state" style="padding:24px 16px;">
+      <div class="empty-state" style="padding:26px 18px;">
         <i class="ph-duotone ph-buildings"></i>
-        <strong style="display:block; font-size:0.92rem; color:var(--text-main);">RENTORA Portföyünüz Hazır</strong>
-        <p style="font-size:0.78rem; margin:6px 0 14px;">Henüz gayrimenkul eklenmedi. İlk gayrimenkulünüzü ve kiracınızı ekleyerek kira takibine hemen başlayabilirsiniz.</p>
-        <button class="btn-primary" onclick="openPropertyModal()">
-          <i class="ph-bold ph-plus-circle"></i> İlk Gayrimenkulü Ekle
-        </button>
+        <strong style="display:block; font-size:0.96rem; color:var(--text-main);">RENTORA Portföyünüze Hoş Geldiniz</strong>
+        <p style="font-size:0.8rem; margin:6px 0 16px; line-height:1.45;">
+          İlk gayrimenkulünüzü ekleyerek aylık kira takibi, döviz/altın bazlı başa baş amortisman hesabı ve sözleşme yönetimine hemen başlayın.
+        </p>
+        <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+          <button class="btn-primary" onclick="openPropertyModal()">
+            <i class="ph-bold ph-plus-circle"></i> + İlk Gayrimenkulü Ekle
+          </button>
+          <button class="btn-secondary" onclick="resetTo10PropertyDemoConfirm()">
+            <i class="ph-bold ph-sparkle"></i> 10 Mülklü Örnek Portföyü Gör
+          </button>
+        </div>
       </div>
     `;
     return;
   }
 
-  box.innerHTML = state.properties.map((prop, idx) => {
+  // Enrich & Smart-Sort: Overdue (1) -> Partial (2) -> Unpaid/Pending (3) -> Paid (4) -> Vacant (5)
+  const enriched = state.properties.map((prop, idx) => {
     const info = getPropertyPeriodStatus(prop, periodKey);
+    let rank = 5;
+    if (prop.status === 'rented') {
+      if (info.status === 'overdue') rank = 1;
+      else if (info.status === 'partial') rank = 2;
+      else if (info.status === 'unpaid') rank = 3;
+      else if (info.status === 'paid') rank = 4;
+    }
+    return { prop, info, idx, rank };
+  }).filter(({ info }) => {
+    if (homePropertyFilter === 'paid') return info.status === 'paid';
+    if (homePropertyFilter === 'overdue') return info.status === 'overdue' || info.status === 'partial' || info.status === 'unpaid';
+    return true;
+  }).sort((a, b) => a.rank - b.rank || a.idx - b.idx);
+
+  if (enriched.length === 0) {
+    box.innerHTML = `
+      <div class="empty-state" style="padding:20px 14px;">
+        <strong>Bu filtrede gayrimenkul bulunmuyor</strong>
+        <div style="margin-top:8px;">
+          <button class="btn-secondary" onclick="setHomeFilter('all')">Tüm Mülkleri Göster</button>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  box.innerHTML = enriched.map(({ prop, info, idx }) => {
     const isRented = prop.status === 'rented';
     let rowCls = 'prow-vacant';
     let badgeTxt = 'Boş Mülk';
@@ -1204,7 +1736,7 @@ function renderQuickPropertiesBoard(periodKey) {
       if (info.status === 'paid') {
         rowCls = 'prow-paid';
         badgeTxt = '✓ Ödendi';
-        badgeSub = `Tamamı Tahsil Edildi`;
+        badgeSub = `Tahsilat Tamam`;
       } else if (info.status === 'overdue') {
         rowCls = 'prow-overdue';
         badgeTxt = '! Gecikti';
@@ -1215,7 +1747,7 @@ function renderQuickPropertiesBoard(periodKey) {
         badgeSub = `Kalan: ${formatCurrency(info.remaining)}`;
       } else {
         rowCls = 'prow-pending';
-        badgeTxt = `Vade: Ayın ${info.dueDay}'i`;
+        badgeTxt = `Ayın ${info.dueDay}'i`;
         badgeSub = `Bekleyen: ${formatCurrency(info.remaining)}`;
       }
     }
@@ -1228,7 +1760,7 @@ function renderQuickPropertiesBoard(periodKey) {
         <div class="epr-main">
           <div class="epr-title-line">
             <strong class="epr-name">${escapeHtml(cleanTitle)}</strong>
-            <span class="epr-type-tag">${escapeHtml(prop.type)}</span>
+            <span class="epr-type-tag">${escapeHtml(prop.type)} ${prop.rooms ? '• ' + escapeHtml(prop.rooms) : ''}</span>
           </div>
           <div class="epr-sub-line">
             <span><i class="ph-fill ph-user"></i> ${escapeHtml(isRented ? prop.tenantName : 'Kiracı Atanmadı')}</span>
@@ -1242,11 +1774,19 @@ function renderQuickPropertiesBoard(periodKey) {
         </div>
         <div class="epr-actions" onclick="event.stopPropagation()">
           ${isRented && info.status !== 'paid' ? `
-            <button class="epr-btn pay" onclick="openPaymentModal('${prop.id}', '${periodKey}')" title="Kira Tahsilatı Gir">
-              <i class="ph-bold ph-hand-coins"></i>
+            <button class="epr-btn pay-pill" onclick="oneTapInstantCollect('${prop.id}', '${periodKey}')" title="Tek Dokunuşla Tam Tahsilat Onayla">
+              <i class="ph-bold ph-check"></i> Ödendi
+            </button>
+            <button class="epr-btn whatsapp-mini" onclick="sendReminderWhatsApp('${prop.id}', '${periodKey}')" title="WhatsApp Hatırlatma Gönder">
+              <i class="ph-fill ph-whatsapp-logo"></i>
             </button>
           ` : ''}
-          <button class="epr-btn edit" onclick="openPropertyModal('${prop.id}')" title="Mülkü Düzenle">
+          ${isRented && info.status === 'paid' ? `
+            <button class="epr-btn receipt-mini" onclick="quickOpenLegalDoc('kira_makbuzu', '${prop.id}')" title="Kira Tahsilat Makbuzu PDF">
+              <i class="ph-bold ph-receipt"></i>
+            </button>
+          ` : ''}
+          <button class="epr-btn edit" onclick="openPropertyModal('${prop.id}')" title="Mülkü & Kiracıyı Düzenle">
             <i class="ph-bold ph-pencil-simple"></i>
           </button>
         </div>
@@ -3071,6 +3611,7 @@ function savePropertyForm(e) {
   e.preventDefault();
   const id = document.getElementById('propId').value || ('prop_' + Date.now());
   const existing = state.properties.find(x => x.id === id);
+  if (!checkLicenseWritePermission(!existing)) return;
   const grossM2Val = Number(document.getElementById('propGrossM2')?.value || 120);
   const netM2Val = Number(document.getElementById('propNetM2')?.value || 100);
   const aveVal = (document.getElementById('propAvenue')?.value || '').trim();
@@ -3209,6 +3750,7 @@ function openTenantModal(tenId = null) {
 
 function saveTenantForm(e) {
   e.preventDefault();
+  if (!checkLicenseWritePermission(false)) return;
   const id = document.getElementById('tenId').value || ('ten_' + Date.now());
   const propId = document.getElementById('tenPropertyId').value;
   const prop = state.properties.find(p => p.id === propId);
@@ -3370,6 +3912,7 @@ function openPaymentModal(propId, periodKey = getPeriodKey(), showSelector = fal
 
 function savePaymentForm(e) {
   e.preventDefault();
+  if (!checkLicenseWritePermission(false)) return;
   const propId = document.getElementById('payPropertyId').value;
   const periodKey = document.getElementById('payPeriodKey').value;
   const prop = state.properties.find(p => p.id === propId);
