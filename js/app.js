@@ -4,6 +4,8 @@
    ========================================================================== */
 
 const STORAGE_KEY = 'rentora_enterprise_v2';
+const AUTH_GATE_STORAGE_KEY = 'rentora_device_auth_token_v1';
+const AUTH_EXPECTED_SHA256 = '7a29b5e673caa030731ebf304028832c0d4617404f395950cb64a2f80dbc0ae6';
 const LEGACY_KEYS = ['rentora_enterprise_v1', 'avigen_kira_takip_v1'];
 const APP_SCHEMA_VERSION = 3;
 const MONTHS_TR = [
@@ -86,6 +88,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     saveState();
   }
   applyTheme(state.theme || 'light');
+  checkLicenseAuthGateOnStartup();
   checkPinLockOnStartup();
   initDocumentBuilderSelects();
   updatePeriodHeader();
@@ -98,6 +101,72 @@ document.addEventListener('DOMContentLoaded', async () => {
 function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
+}
+
+async function computeSha256Hex(message) {
+  if (window.crypto && window.crypto.subtle) {
+    const msgBuffer = new TextEncoder().encode(message);
+    const hashBuffer = await window.crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+  // Fallback deterministic check if running on non-HTTPS local file:// where subtle crypto is unavailable
+  let h1 = 0xdeadbeef ^ message.length;
+  let h2 = 0x41c6ce57 ^ message.length;
+  for (let i = 0, ch; i < message.length; i++) {
+    ch = message.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (h2 >>> 0).toString(16).padStart(8, '0') + (h1 >>> 0).toString(16).padStart(8, '0');
+}
+
+function checkLicenseAuthGateOnStartup() {
+  const gate = document.getElementById('licenseAuthGateOverlay');
+  if (!gate) return;
+  const savedToken = localStorage.getItem(AUTH_GATE_STORAGE_KEY);
+  if (savedToken === AUTH_EXPECTED_SHA256) {
+    gate.style.display = 'none';
+  } else {
+    gate.style.display = 'flex';
+  }
+}
+
+async function verifyLicenseAuthCode(e) {
+  if (e) e.preventDefault();
+  const inp = document.getElementById('licenseAuthCodeInput');
+  const err = document.getElementById('licenseAuthErrorMsg');
+  const code = (inp?.value || '').trim();
+  if (!code) return;
+
+  const candidatePayload = `RENTORA_AUTH_${code}_SALT`;
+  const digest = await computeSha256Hex(candidatePayload);
+  // Support both WebCrypto SHA-256 and local file:// fallback hash
+  const expectedFallback = await (async () => {
+    let h1 = 0xdeadbeef ^ 26, h2 = 0x41c6ce57 ^ 26;
+    const s = 'RENTORA_AUTH_' + String(44127358 * 2) + '_SALT';
+    for (let i = 0, ch; i < s.length; i++) {
+      ch = s.charCodeAt(i);
+      h1 = Math.imul(h1 ^ ch, 2654435761);
+      h2 = Math.imul(h2 ^ ch, 1597334677);
+    }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    return (h2 >>> 0).toString(16).padStart(8, '0') + (h1 >>> 0).toString(16).padStart(8, '0');
+  })();
+
+  if (digest === AUTH_EXPECTED_SHA256 || digest === expectedFallback) {
+    localStorage.setItem(AUTH_GATE_STORAGE_KEY, AUTH_EXPECTED_SHA256);
+    const gate = document.getElementById('licenseAuthGateOverlay');
+    if (gate) gate.style.display = 'none';
+    if (err) err.textContent = '';
+    showToast('Cihaz başarıyla yetkilendirildi! Hoş geldiniz 🔓');
+  } else {
+    if (err) err.textContent = 'Geçersiz Kurulum Yetki Şifresi! Erişim reddedildi.';
+    if (inp) inp.value = '';
   }
 }
 
