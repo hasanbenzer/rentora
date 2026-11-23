@@ -116,47 +116,50 @@
   </div>
 
   <div class="app-shell">
-    <!-- ==================== BESPOKE RENTORA TOP BAR ==================== -->
+    <!-- ==================== BESPOKE RENTORA TOP BAR (CLEAN 2-TIER LAYOUT — NO OVERLAP) ==================== -->
     <header class="topbar no-print">
-      <div class="brand" onclick="switchTab('dashboard')">
-        <div class="rentora-logo-emblem">
-          <img src="logo.png" alt="RENTORA Logo" class="rentora-logo-img" />
-        </div>
-        <div class="brand-text">
-          <div class="brand-title-row">
-            <span class="brand-title">RENTORA</span>
-            <span class="live-fx-chip" id="liveFxHeaderChip" onclick="event.stopPropagation(); refreshLiveMarketRates(true)" title="Canlı Döviz & Altın Kurlarını Güncelle">
-              <i class="ph-bold ph-arrows-clockwise"></i> <span id="liveFxTickerText">$ 34.50 • Gr 3.000₺</span>
-            </span>
+      <div class="topbar-main-row">
+        <div class="brand" onclick="switchTab('dashboard')">
+          <div class="rentora-logo-emblem">
+            <img src="logo.png" alt="RENTORA Logo" class="rentora-logo-img" />
           </div>
-          <span class="brand-sub" id="ownerHeaderSub">Gayrimenkulünüzün Akıllı Yönetim Merkezi</span>
+          <div class="brand-text">
+            <span class="brand-title">RENTORA</span>
+            <span class="brand-sub" id="ownerHeaderSub">Gayrimenkulünüzün Akıllı Yönetim Merkezi</span>
+          </div>
+        </div>
+
+        <div class="topbar-actions">
+          <button class="icon-btn badge-wrap" onclick="openNotificationsModal()" title="Bildirim Merkezi">
+            <i class="ph-fill ph-bell-ringing"></i>
+            <span class="notif-dot" id="notifBadgeCount" style="display:none;">0</span>
+          </button>
+
+          <button class="icon-btn" onclick="openQrModal()" title="Telefona Kur">
+            <i class="ph-bold ph-qr-code"></i>
+          </button>
+
+          <button class="icon-btn" onclick="switchTab('documents'); switchSubManagement('license')" title="Üyelik, Lisans & Güncelleme">
+            <i class="ph-fill ph-crown"></i>
+          </button>
+
+          <button class="icon-btn" onclick="toggleTheme()" id="themeToggleBtn" title="Tema Değiştir">
+            <i class="ph ph-moon"></i>
+          </button>
         </div>
       </div>
 
-      <div class="topbar-actions">
+      <div class="topbar-sub-row">
+        <span class="live-fx-chip" id="liveFxHeaderChip" onclick="refreshLiveMarketRates(true)" title="Canlı Döviz & Altın Kurlarını Güncelle">
+          <i class="ph-bold ph-arrows-clockwise"></i> <span id="liveFxTickerText">$ 34.50 • Gr 3.000₺</span>
+        </span>
+
         <!-- Period Selector Pill -->
         <div class="period-pill-bar">
           <button class="p-nav" onclick="changePeriod(-1)" aria-label="Önceki Ay"><i class="ph-bold ph-caret-left"></i></button>
           <span class="p-label" id="currentPeriodLabel" onclick="resetToCurrentMonth()">Kasım 2026</span>
           <button class="p-nav" onclick="changePeriod(1)" aria-label="Sonraki Ay"><i class="ph-bold ph-caret-right"></i></button>
         </div>
-
-        <button class="icon-btn badge-wrap" onclick="openNotificationsModal()" title="Bildirim Merkezi">
-          <i class="ph-fill ph-bell-ringing"></i>
-          <span class="notif-dot" id="notifBadgeCount" style="display:none;">0</span>
-        </button>
-
-        <button class="icon-btn" onclick="openQrModal()" title="Telefona Kur">
-          <i class="ph-bold ph-qr-code"></i>
-        </button>
-
-        <button class="icon-btn" onclick="switchTab('documents'); switchSubManagement('license')" title="Üyelik, Lisans & Güncelleme">
-          <i class="ph-fill ph-crown"></i>
-        </button>
-
-        <button class="icon-btn" onclick="toggleTheme()" id="themeToggleBtn" title="Tema Değiştir">
-          <i class="ph ph-moon"></i>
-        </button>
       </div>
     </header>
 
@@ -170,16 +173,30 @@
            TAB 1: ANA SAYFA (TEK EKRANDA KOMPAKT KOKPİT — TIKLA DETAY AÇILSIN)
            =================================================================== -->
       <section class="tab-view active" id="view-dashboard">
-        <!-- 1. Compact Genesis Hero Banner (Purple -> Blue -> Pink) -->
+        <!-- 1. Executive Institutional Rent Performance Banner -->
         <div class="hero-card compact-hero" onclick="openVisualAnalyticsModal()" title="Grafik ve Detaylı Analiz İçin Dokunun">
           <div class="hero-top" style="margin-bottom:8px;">
-            <div>
-              <span class="hero-label" id="heroPeriodTitle">KASIM 2026 KİRA ÖZETİ • GRAFİK İÇİN DOKUNUN</span>
+            <div style="flex:1; min-width:0;">
+              <div class="hero-title-line">
+                <span class="hero-label" id="heroPeriodTitle">KASIM 2026 KİRA PERFORMANSI</span>
+                <span class="hero-ratio-chip" id="heroCollectionRatioSub">0/0 Ödedi</span>
+              </div>
               <div class="hero-amount-row">
                 <span class="hero-paid" id="statPaidAmount">0 ₺</span>
                 <span class="hero-expected">/ <span id="statExpectedAmount">0 ₺</span></span>
               </div>
-              <div class="hero-sub-pill" id="heroCollectionRatioSub">10 Mülkten 0'ı Ödedi</div>
+              <!-- Aylık & Yıllık Kira Gücü Dual Strip inside Performance Card -->
+              <div class="hero-power-strip">
+                <div class="hp-item">
+                  <span class="hp-lbl">Aylık Kira Gücü:</span>
+                  <strong class="hp-val" id="heroMonthlyPowerVal">0 ₺</strong>
+                </div>
+                <span class="hp-sep">•</span>
+                <div class="hp-item">
+                  <span class="hp-lbl">Yıllık Kira Gücü:</span>
+                  <strong class="hp-val" id="heroYearlyPowerVal">0 ₺</strong>
+                </div>
+              </div>
             </div>
 
             <!-- SVG Circular Gauge -->
@@ -192,27 +209,27 @@
             </div>
           </div>
 
-          <div class="progress-track" style="margin-bottom:10px;">
+          <div class="progress-track" style="margin-bottom:9px;">
             <div class="progress-fill" id="statProgressBar" style="width: 0%"></div>
           </div>
 
           <div class="hero-stats-grid" onclick="event.stopPropagation()">
-            <div class="mini-stat" onclick="switchTab('collections'); setCollectionFilter('paid')">
-              <span class="mini-label"><span class="dot dot-blue"></span>Tahsil Edilen</span>
+            <div class="mini-stat" onclick="setHomeFilter('paid')">
+              <span class="mini-label"><span class="dot dot-emerald"></span>Tahsil Edilen</span>
               <strong class="mini-val" id="statCollectedMini">0 ₺</strong>
             </div>
-            <div class="mini-stat" onclick="switchTab('collections'); setCollectionFilter('unpaid')">
-              <span class="mini-label"><span class="dot dot-purple"></span>Bekleyen</span>
+            <div class="mini-stat" onclick="setHomeFilter('overdue')">
+              <span class="mini-label"><span class="dot dot-amber"></span>Bekleyen</span>
               <strong class="mini-val" id="statRemainingAmount">0 ₺</strong>
             </div>
-            <div class="mini-stat" onclick="switchTab('collections'); setCollectionFilter('overdue')">
-              <span class="mini-label"><span class="dot dot-pink"></span>Geciken</span>
+            <div class="mini-stat" onclick="setHomeFilter('overdue')">
+              <span class="mini-label"><span class="dot dot-rose"></span>Geciken</span>
               <strong class="mini-val" id="statOverdueAmount">0 ₺</strong>
             </div>
           </div>
         </div>
 
-        <!-- 2. Compact 4-KPI + Quick Filter Strip (Directly filters the home property list!) -->
+        <!-- 2. Compact KPI + Quick Filter Strip (Shows Both Monthly & Yearly Rent Power!) -->
         <div class="kpi-strip compact-kpi" id="homeKpiFilterStrip">
           <div class="kpi-pill active-kpi" data-hfilter="all" onclick="setHomeFilter('all')">
             <span class="kpi-num" id="kpiTotalProps">0</span>
@@ -224,11 +241,12 @@
           </div>
           <div class="kpi-pill" data-hfilter="overdue" onclick="setHomeFilter('overdue')">
             <span class="kpi-num text-danger" id="kpiOverdueCount">0</span>
-            <span class="kpi-txt">🚨 Bekleyen/Geciken</span>
+            <span class="kpi-txt">⏳ Bekleyen/Geciken</span>
           </div>
-          <div class="kpi-pill" onclick="switchTab('reports')">
-            <span class="kpi-num text-sky" id="kpiYearlyEstimate">0 ₺</span>
-            <span class="kpi-txt">📈 Yıllık Kira Gücü</span>
+          <div class="kpi-pill kpi-power-dual" onclick="switchTab('reports')">
+            <div class="kpd-line"><span>Aylık:</span> <strong id="kpiMonthlyEstimate">0 ₺</strong></div>
+            <div class="kpd-line"><span>Yıllık:</span> <strong id="kpiYearlyEstimate">0 ₺</strong></div>
+            <span class="kpi-txt">📈 Aylık & Yıllık Kira Gücü</span>
           </div>
         </div>
 
@@ -672,70 +690,12 @@
 
             <div id="inAppUpdateStatusBox" class="compact-row" style="margin-bottom:10px;">
               <div>
-                <strong style="font-size:0.84rem; display:block;" id="updateCheckTitle">Güncel Sürüm Kullanılıyor (v1.2.0)</strong>
+                <strong style="font-size:0.84rem; display:block;" id="updateCheckTitle">Güncel Sürüm Kullanılıyor (v1.2.1)</strong>
                 <span style="font-size:0.73rem; color:var(--text-muted);" id="updateCheckDesc">Son denetim: Bugün • Tüm gayrimenkul ve tahsilat verileriniz güvende.</span>
               </div>
               <button type="button" class="btn-primary-sm" onclick="checkAndApplyInAppUpdate()">
                 <i class="ph-bold ph-arrows-clockwise"></i> Güncellemeyi Denetle
               </button>
-            </div>
-          </div>
-
-          <!-- Admin / Vendor License Key Generator (Unlocked with Master Code 88254716) -->
-          <div class="panel-card">
-            <div class="panel-card-header">
-              <div style="display:flex; align-items:center; gap:10px;">
-                <div class="panel-icon bg-amber"><i class="ph-fill ph-key"></i></div>
-                <div>
-                  <h3>Satıcı / Yönetici Lisans Anahtarı Üretici</h3>
-                  <p>Müşterileriniz için Aylık, 6 Aylık, Yıllık veya Sınırsız lisans kodu üretin</p>
-                </div>
-              </div>
-              <button type="button" class="btn-outline-sm" onclick="toggleVendorKeygenPanel()">
-                <i class="ph-bold ph-lock-key"></i> Yönetici Paneli Aç
-              </button>
-            </div>
-
-            <div id="vendorKeygenBody" style="display:none; margin-top:10px;">
-              <div class="form-grid">
-                <div class="form-row-3">
-                  <div class="form-group">
-                    <label>Müşteri Adı / E-Posta (İsteğe Bağlı)</label>
-                    <input type="text" id="kgCustomerName" class="form-control" placeholder="Örn: Mehmet Bey" />
-                  </div>
-                  <div class="form-group">
-                    <label>Lisans Paketi</label>
-                    <select id="kgPlanSelect" class="form-control">
-                      <option value="IND5">🏠 Bireysel Paket (5 Mülk)</option>
-                      <option value="PRO15" selected>🏢 Portföy Paketi (15 Mülk)</option>
-                      <option value="UNL">👑 Kurumsal Sınırsız Paket</option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label>Kullanım Süresi (Abonelik)</label>
-                    <select id="kgDurationSelect" class="form-control">
-                      <option value="30">📅 1 Aylık (30 Gün)</option>
-                      <option value="90">📅 3 Aylık (90 Gün)</option>
-                      <option value="180">📅 6 Aylık (180 Gün)</option>
-                      <option value="365" selected>🗓️ 1 Yıllık (365 Gün)</option>
-                      <option value="3650">♾️ Sınırsız / Ömür Boyu (10 Yıl)</option>
-                    </select>
-                  </div>
-                </div>
-                <button type="button" class="btn-primary-full" onclick="generateVendorLicenseKey()">
-                  <i class="ph-bold ph-magic-wand"></i> İmzalı Lisans Anahtarı Üret
-                </button>
-                <div id="kgResultBox" class="compact-row" style="display:none; background:rgba(0,168,120,0.1); border-color:#00a878;">
-                  <div>
-                    <span style="font-size:0.7rem; color:var(--text-muted); display:block;">Üretilen Müşteri Lisans Kodu:</span>
-                    <strong id="kgGeneratedKeyText" style="font-size:1.05rem; letter-spacing:1px; color:#008f65;">RNT-...</strong>
-                  </div>
-                  <div style="display:flex; gap:6px;">
-                    <button type="button" class="btn-primary-sm" onclick="copyGeneratedLicenseKey()"><i class="ph ph-copy"></i> Kopyala</button>
-                    <button type="button" class="btn-outline-sm" onclick="applyGeneratedKeyToSelf()">Hesabıma Uygula</button>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>

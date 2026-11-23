@@ -2,6 +2,8 @@
 kira_verileri.json
 kira_verileri_*.json
 yedekler/
+Rentora_Lisans_Uretici.html
+Lisans_Uretici_Ac.bat
 *.db
 *.db-wal
 *.db-shm
