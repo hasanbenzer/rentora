@@ -3409,3 +3409,313 @@ html, body {
   font-size: 0.85rem;
 }
 
+/* ==========================================================================
+   RENTORA V10 — 2-TIER HEADER (ZERO OVERLAP), INSTITUTIONAL RENT PERFORMANCE
+   HERO, MONTHLY & YEARLY RENT POWER, AND ULTRA-SLIM PENDING/OVERDUE ROWS
+   ========================================================================== */
+
+/* 1. Clean 2-Tier Topbar — RENTORA Brand Title Never Covered by Links/Buttons */
+.topbar {
+  flex-direction: column !important;
+  align-items: stretch !important;
+  padding: calc(10px + var(--safe-top)) 14px 8px !important;
+  gap: 7px !important;
+}
+
+.topbar-main-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+}
+
+.topbar-main-row .brand {
+  flex: 1;
+  min-width: 0;
+  gap: 10px;
+}
+
+.topbar-main-row .brand-title {
+  font-size: 1.15rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.8px !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  white-space: nowrap;
+  display: block;
+}
+
+:root[data-theme="dark"] .topbar-main-row .brand-title {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+
+.topbar-sub-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+:root[data-theme="dark"] .topbar-sub-row {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+.topbar-sub-row .period-pill-bar {
+  height: 28px !important;
+  padding: 0 3px !important;
+}
+
+.topbar-sub-row .p-label {
+  font-size: 0.73rem !important;
+}
+
+/* 2. Institutional Executive Rent Performance Card (Top Hero) */
+.hero-card.compact-hero {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 52%, #172554 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 10px 26px -6px rgba(15, 23, 42, 0.35) !important;
+  padding: 13px 15px !important;
+  border-radius: 16px !important;
+}
+
+.hero-title-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 3px;
+}
+
+.compact-hero .hero-label {
+  color: #94a3b8 !important;
+  font-size: 0.64rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.6px !important;
+  margin: 0 !important;
+}
+
+.hero-ratio-chip {
+  font-size: 0.63rem;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 99px;
+  background: rgba(16, 185, 129, 0.16);
+  border: 1px solid rgba(16, 185, 129, 0.32);
+  color: #6ee7b7;
+}
+
+.compact-hero .hero-paid {
+  color: #ffffff !important;
+  font-size: 1.48rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.3px;
+}
+
+.compact-hero .hero-expected {
+  color: #94a3b8 !important;
+  font-size: 0.86rem !important;
+  font-weight: 600 !important;
+}
+
+/* Monthly & Yearly Rent Power Strip inside Top Performance Card */
+.hero-power-strip {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  font-size: 0.69rem;
+}
+
+.hp-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hp-lbl {
+  color: #cbd5e1;
+  font-weight: 600;
+}
+
+.hp-val {
+  color: #38bdf8;
+  font-weight: 800;
+}
+
+.hp-sep {
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.compact-hero .circle {
+  stroke: #10b981 !important;
+}
+
+.compact-hero .progress-track {
+  background: rgba(255, 255, 255, 0.12) !important;
+  height: 6px !important;
+}
+
+.compact-hero .progress-fill {
+  background: linear-gradient(90deg, #10b981 0%, #0ea5e9 100%) !important;
+}
+
+.compact-hero .mini-stat {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.09) !important;
+  border-radius: 10px !important;
+  padding: 6px 9px !important;
+  cursor: pointer;
+}
+
+.compact-hero .mini-label {
+  color: #cbd5e1 !important;
+  font-size: 0.64rem !important;
+}
+
+.compact-hero .mini-val {
+  color: #ffffff !important;
+  font-size: 0.85rem !important;
+}
+
+.dot-emerald { background: #10b981 !important; }
+.dot-amber   { background: #f59e0b !important; }
+.dot-rose    { background: #f43f5e !important; }
+
+/* 3. Dual Monthly & Yearly Rent Power in KPI Strip */
+.kpi-pill.kpi-power-dual {
+  padding: 5px 7px !important;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+}
+
+.kpd-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 0.67rem;
+  line-height: 1.2;
+}
+
+.kpd-line span {
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.kpd-line strong {
+  color: #0284c7;
+  font-weight: 800;
+}
+
+:root[data-theme="dark"] .kpd-line strong {
+  color: #38bdf8;
+}
+
+/* 4. Ultra-Slim Compact Rows for Pending / Overdue Properties (45% Less Vertical Depth) */
+.cockpit-10-grid,
+#collectionsCardsList,
+#dashboardUpcomingList {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 5px !important;
+}
+
+.exec-prop-row.slim-row {
+  padding: 6px 10px !important;
+  border-radius: 10px !important;
+  gap: 8px !important;
+  min-height: 46px;
+}
+
+.exec-prop-row.slim-row .epr-num {
+  width: 22px !important;
+  height: 22px !important;
+  border-radius: 6px !important;
+  font-size: 0.7rem !important;
+}
+
+.exec-prop-row.slim-row .epr-main {
+  gap: 1px !important;
+}
+
+.exec-prop-row.slim-row .epr-title-line {
+  gap: 5px !important;
+  flex-wrap: nowrap !important;
+}
+
+.exec-prop-row.slim-row .epr-name {
+  font-size: 0.81rem !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.exec-prop-row.slim-row .epr-type-tag {
+  font-size: 0.59rem !important;
+  padding: 1px 5px !important;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.exec-prop-row.slim-row .epr-sub-line {
+  font-size: 0.69rem !important;
+  gap: 4px !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.exec-prop-row.slim-row .epr-right {
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+@media (max-width: 520px) {
+  .exec-prop-row.slim-row .epr-right {
+    flex-direction: column !important;
+    align-items: flex-end !important;
+    gap: 1px !important;
+  }
+}
+
+.exec-prop-row.slim-row .epr-rent {
+  font-size: 0.82rem !important;
+  white-space: nowrap;
+}
+
+.exec-prop-row.slim-row .epr-status-pill {
+  font-size: 0.61rem !important;
+  padding: 1px 6px !important;
+  white-space: nowrap;
+}
+
+.exec-prop-row.slim-row .epr-actions {
+  gap: 4px !important;
+}
+
+.exec-prop-row.slim-row .epr-btn {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 7px !important;
+  font-size: 0.85rem !important;
+}
+
+.exec-prop-row.slim-row .epr-btn.pay-pill {
+  height: 28px !important;
+  padding: 0 8px !important;
+  font-size: 0.68rem !important;
+}
+
+
