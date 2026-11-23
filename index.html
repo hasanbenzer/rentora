@@ -6,6 +6,8 @@
   <title>RENTORA — 10'lu Gayrimenkul & Kira Yönetim Platformu</title>
 
   <!-- iOS & Android Standalone PWA Meta Tags -->
+  <meta name="robots" content="noindex, nofollow, noarchive" />
+  <meta name="googlebot" content="noindex, nofollow" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="RENTORA" />
@@ -24,6 +26,27 @@
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
+  <!-- Mandatory First-Install Authorization Gate (Protects Public Access) -->
+  <div id="licenseAuthGateOverlay" class="pin-overlay no-print" style="display: flex;">
+    <div class="pin-card" style="max-width: 370px;">
+      <img src="logo.png" alt="Rentora Logo" style="width:82px; height:82px; border-radius:18px; object-fit:contain; background:#fff; padding:4px; box-shadow:0 6px 18px rgba(11,37,69,0.12);" />
+      <h2 style="font-size:1.12rem; font-weight:800; color:var(--text-main);">RENTORA Yetkili Kurulum</h2>
+      <p style="font-size:0.8rem; color:var(--text-muted); line-height:1.45;">
+        Bu uygulama özel erişime açıktır. Cihazınızı yetkilendirmek için <strong>8 haneli Kurulum Yetki Şifresini</strong> girin:
+      </p>
+      <form onsubmit="verifyLicenseAuthCode(event)" style="width:100%; display:flex; flex-direction:column; align-items:center; gap:10px;">
+        <input type="password" id="licenseAuthCodeInput" maxlength="12" inputmode="numeric" class="pin-input" style="width:220px; font-size:1.35rem; letter-spacing:6px;" placeholder="••••••••" required />
+        <div id="licenseAuthErrorMsg" class="pin-error"></div>
+        <button type="submit" class="btn-primary-full" style="margin-top:4px;">
+          <i class="ph-bold ph-shield-check"></i> Cihazı Yetkilendir ve Aç
+        </button>
+      </form>
+      <small style="font-size:0.68rem; color:var(--text-muted); margin-top:4px;">
+        Bir kez doğrulandığında bu cihazda otomatik hatırlanır ve güncellemeler veri kayıpsız alınır.
+      </small>
+    </div>
+  </div>
+
   <!-- Optional PIN Lock Overlay -->
   <div id="pinLockOverlay" class="pin-overlay no-print" style="display: none;">
     <div class="pin-card">
