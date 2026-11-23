@@ -6,7 +6,7 @@
 const STORAGE_KEY = 'rentora_enterprise_v2';
 const MEMBERS_REGISTRY_KEY = 'rentora_members_registry_v1';
 const ACTIVE_SESSION_KEY = 'rentora_active_member_session_v1';
-const CURRENT_APP_VERSION = '1.2.2';
+const CURRENT_APP_VERSION = '1.2.3';
 const AUTH_GATE_STORAGE_KEY = 'rentora_device_auth_token_v1';
 const AUTH_EXPECTED_SHA256 = '7a29b5e673caa030731ebf304028832c0d4617404f395950cb64a2f80dbc0ae6';
 const LEGACY_KEYS = ['rentora_enterprise_v1', 'avigen_kira_takip_v1'];
@@ -4310,6 +4310,131 @@ function downloadBackupJson() {
   a.download = `RENTORA_Yedek_${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   showToast('Tam yedek dosyası (.json) indirildi 💾');
+}
+
+function buildWhatsAppBackupMessage() {
+  const compactProps = (state.properties || []).map(p => {
+    const copy = { ...p };
+    if (copy.photoUrl && copy.photoUrl.startsWith('data:')) copy.photoUrl = '';
+    return copy;
+  });
+  const payload = {
+    v: 1,
+    ts: Date.now(),
+    owner: state.owner || {},
+    properties: compactProps,
+    tenants: state.tenants || [],
+    payments: state.payments || {},
+    paymentAuditLog: (state.paymentAuditLog || []).slice(0, 60),
+    expenses: state.expenses || [],
+    increaseHistory: state.increaseHistory || [],
+    activeMember: getActiveMemberSession()
+  };
+  const jsonStr = JSON.stringify(payload);
+  const b64 = btoa(unescape(encodeURIComponent(jsonStr)));
+  const dateStr = new Date().toLocaleDateString('tr-TR') + ' ' + new Date().toTimeString().slice(0, 5);
+  return `📦 *RENTORA PORTFÖY YEDEĞİM (${dateStr})*\n` +
+    `🏠 Mülk: ${compactProps.length} • Kiracı: ${(state.tenants || []).length}\n` +
+    `ℹ️ _Geri yüklemek için bu mesajı kopyalayıp RENTORA içindeki "WhatsApp Yedeğini Yapıştır" ekranına yapıştırın._\n\n` +
+    `RNTWA1:${b64}`;
+}
+
+function shareBackupViaWhatsApp() {
+  const msg = buildWhatsAppBackupMessage();
+  try {
+    navigator.clipboard?.writeText(msg);
+  } catch (e) {}
+  const sess = getActiveMemberSession();
+  const myPhone = state.owner?.phone || sess?.phone || '';
+  showToast('Yedek mesajı hazırlandı ve kopyalandı! WhatsApp açılıyor 💬');
+  openWhatsAppLink(myPhone, msg);
+}
+
+function copyWhatsAppBackupCodeOnly() {
+  const msg = buildWhatsAppBackupMessage();
+  navigator.clipboard?.writeText(msg);
+  showToast('Yedek mesajı panoya kopyalandı! WhatsApp\'ta kendinize yapıştırabilirsiniz 📋');
+}
+
+function openWhatsAppBackupModal(mode = 'restore') {
+  openModal('whatsappBackupModal');
+  if (mode === 'restore') {
+    setTimeout(() => document.getElementById('waBackupPasteTextarea')?.focus(), 150);
+  }
+}
+
+async function pasteFromClipboardToBackupBox() {
+  const box = document.getElementById('waBackupPasteTextarea');
+  if (!box) return;
+  try {
+    const txt = await navigator.clipboard.readText();
+    if (txt) {
+      box.value = txt;
+      showToast('Panodaki yedek mesajı yapıştırıldı ✅');
+      return;
+    }
+  } catch (e) {}
+  box.focus();
+  showToast('Kutunun içine basılı tutup "Yapıştır"a dokunun');
+}
+
+function restoreFromWhatsAppBackupText() {
+  const raw = (document.getElementById('waBackupPasteTextarea')?.value || '').trim();
+  if (!raw) {
+    alert('Lütfen WhatsApp\'tan kopyaladığınız yedek mesajını kutuya yapıştırın.');
+    return;
+  }
+
+  try {
+    let parsed = null;
+    const match = raw.match(/RNTWA1:([A-Za-z0-9+/=]+)/);
+    if (match && match[1]) {
+      const jsonStr = decodeURIComponent(escape(atob(match[1])));
+      parsed = JSON.parse(jsonStr);
+    } else if (raw.startsWith('{')) {
+      parsed = JSON.parse(raw);
+    }
+
+    if (!parsed || !Array.isArray(parsed.properties)) {
+      alert('❌ Yedek kodu okunamadı! Lütfen WhatsApp mesajının tamamını (RNTWA1:... kısmını içerecek şekilde) kopyalayıp yapıştırdığınızdan emin olun.');
+      return;
+    }
+
+    if (parsed.activeMember) {
+      localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(parsed.activeMember));
+      localStorage.setItem(AUTH_GATE_STORAGE_KEY, AUTH_EXPECTED_SHA256);
+      const list = getMembersRegistry();
+      if (!list.some(m => m.id === parsed.activeMember.id)) {
+        list.push(parsed.activeMember);
+        saveMembersRegistry(list);
+      }
+    } else {
+      localStorage.setItem(AUTH_GATE_STORAGE_KEY, AUTH_EXPECTED_SHA256);
+      ensureDefaultMasterMemberSession();
+    }
+
+    state = {
+      ...state,
+      owner: parsed.owner || state.owner,
+      properties: parsed.properties || [],
+      tenants: parsed.tenants || [],
+      payments: parsed.payments || {},
+      paymentAuditLog: parsed.paymentAuditLog || [],
+      expenses: parsed.expenses || [],
+      increaseHistory: parsed.increaseHistory || []
+    };
+
+    saveState();
+    const gate = document.getElementById('licenseAuthGateOverlay');
+    if (gate) gate.style.display = 'none';
+    closeModal('whatsappBackupModal');
+    const box = document.getElementById('waBackupPasteTextarea');
+    if (box) box.value = '';
+    renderAll();
+    showToast(`🎉 WhatsApp yedeğiniz geri yüklendi! (${state.properties.length} Mülk, ${state.tenants.length} Kiracı)`);
+  } catch (err) {
+    alert('❌ Yedek mesajı çözümlenemedi. Lütfen WhatsApp mesajının tamamını eksiksiz kopyalayıp tekrar deneyin.');
+  }
 }
 
 function restoreBackupJson(event) {
