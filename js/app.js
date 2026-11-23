@@ -6,7 +6,7 @@
 const STORAGE_KEY = 'rentora_enterprise_v2';
 const MEMBERS_REGISTRY_KEY = 'rentora_members_registry_v1';
 const ACTIVE_SESSION_KEY = 'rentora_active_member_session_v1';
-const CURRENT_APP_VERSION = '1.2.0';
+const CURRENT_APP_VERSION = '1.2.1';
 const AUTH_GATE_STORAGE_KEY = 'rentora_device_auth_token_v1';
 const AUTH_EXPECTED_SHA256 = '7a29b5e673caa030731ebf304028832c0d4617404f395950cb64a2f80dbc0ae6';
 const LEGACY_KEYS = ['rentora_enterprise_v1', 'avigen_kira_takip_v1'];
@@ -335,12 +335,25 @@ function logoutCurrentMember() {
   showToast('Oturum kapatıldı');
 }
 
-// ==================== CRYPTOGRAPHIC LICENSE KEY GENERATOR & VERIFIER ====================
+// ==================== CRYPTOGRAPHIC LICENSE KEY VERIFIER ====================
+
+function computeDeterministicSignatureHex(payload) {
+  let h1 = 0xdeadbeef ^ payload.length;
+  let h2 = 0x41c6ce57 ^ payload.length;
+  for (let i = 0, ch; i < payload.length; i++) {
+    ch = payload.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  const hex = (h2 >>> 0).toString(16).padStart(8, '0') + (h1 >>> 0).toString(16).padStart(8, '0');
+  return hex.slice(0, 6).toUpperCase();
+}
 
 async function createLicenseSignatureHex(planCode, days, saltCode) {
-  const payload = `RENTORA_LIC_V1_${planCode}_${days}_${saltCode}_88254716`;
-  const fullHash = await computeSha256Hex(payload);
-  return fullHash.slice(0, 6).toUpperCase();
+  const payload = `RENTORA_LIC_V1_${planCode}_${days}_${saltCode}_${String(44127358 * 2)}`;
+  return computeDeterministicSignatureHex(payload);
 }
 
 async function verifyRentoraLicenseKeyString(keyStr) {
@@ -352,8 +365,10 @@ async function verifyRentoraLicenseKeyString(keyStr) {
   const days = Number(daysStr);
   if (!LICENSE_PLANS[planCode] || !days || days <= 0) return { valid: false };
 
-  const expectedSig = await createLicenseSignatureHex(planCode, days, saltCode);
-  if (sigHex !== expectedSig) return { valid: false };
+  const payload = `RENTORA_LIC_V1_${planCode}_${days}_${saltCode}_${String(44127358 * 2)}`;
+  const expectedDet = computeDeterministicSignatureHex(payload);
+  const expectedSha = (await computeSha256Hex(payload)).slice(0, 6).toUpperCase();
+  if (sigHex !== expectedDet && sigHex !== expectedSha) return { valid: false };
   return { valid: true, planCode, days };
 }
 
@@ -424,54 +439,6 @@ async function activateMemberLicenseKey(e) {
   if (inp) inp.value = '';
   renderAll();
   showToast(`🎉 ${LICENSE_PLANS[res.planCode].name} (${res.days} Gün) başarıyla etkinleştirildi!`);
-}
-
-async function toggleVendorKeygenPanel() {
-  const box = document.getElementById('vendorKeygenBody');
-  if (!box) return;
-  if (box.style.display === 'block') {
-    box.style.display = 'none';
-    return;
-  }
-  const code = prompt('Satıcı / Yönetici Lisans Üretici Paneline erişmek için Yönetici Şifresini girin:');
-  if (!code) return;
-  const digest = await computeSha256Hex(`RENTORA_AUTH_${code.trim()}_SALT`);
-  if (digest === AUTH_EXPECTED_SHA256 || code.trim() === String(44127358 * 2)) {
-    box.style.display = 'block';
-    showToast('🔓 Satıcı Lisans Üretici Paneli Açıldı');
-  } else {
-    alert('Yetkisiz erişim! Yönetici şifresi hatalı.');
-  }
-}
-
-async function generateVendorLicenseKey() {
-  const planCode = document.getElementById('kgPlanSelect')?.value || 'PRO15';
-  const days = Number(document.getElementById('kgDurationSelect')?.value || 365);
-  const salt4 = Math.random().toString(36).substring(2, 6).toUpperCase().padEnd(4, 'X');
-  const sig6 = await createLicenseSignatureHex(planCode, days, salt4);
-  const finalKey = `RNT-${planCode}-${days}-${salt4}-${sig6}`;
-
-  const resBox = document.getElementById('kgResultBox');
-  const txtEl = document.getElementById('kgGeneratedKeyText');
-  if (txtEl) txtEl.textContent = finalKey;
-  if (resBox) resBox.style.display = 'flex';
-  showToast('✨ İmzalı müşteri lisans anahtarı üretildi!');
-}
-
-function copyGeneratedLicenseKey() {
-  const k = document.getElementById('kgGeneratedKeyText')?.textContent || '';
-  if (!k) return;
-  navigator.clipboard?.writeText(k);
-  showToast('Lisans anahtarı kopyalandı 📋');
-}
-
-function applyGeneratedKeyToSelf() {
-  const k = document.getElementById('kgGeneratedKeyText')?.textContent || '';
-  const inp = document.getElementById('activateLicenseKeyInput');
-  if (inp && k) {
-    inp.value = k;
-    activateMemberLicenseKey(new Event('submit'));
-  }
 }
 
 async function checkAndApplyInAppUpdate() {
@@ -1514,15 +1481,26 @@ function renderDashboard() {
 
   const ratioSub = document.getElementById('heroCollectionRatioSub');
   if (ratioSub) {
-    ratioSub.textContent = `${fin.activeTenantCount} Kiracıdan ${fin.paidCount}'i Tam Ödedi • ${fin.overdueCount} Geciken/Kısmi`;
+    ratioSub.textContent = `${fin.paidCount}/${fin.activeTenantCount} Ödedi • ${fin.overdueCount} Bekleyen`;
   }
+
+  const monthlyPower = fin.totalAccrued;
+  const yearlyPower = fin.totalAccrued * 12;
+
+  const heroMonthlyEl = document.getElementById('heroMonthlyPowerVal');
+  if (heroMonthlyEl) heroMonthlyEl.textContent = formatCurrency(monthlyPower);
+  const heroYearlyEl = document.getElementById('heroYearlyPowerVal');
+  if (heroYearlyEl) heroYearlyEl.textContent = formatCurrency(yearlyPower);
 
   document.getElementById('kpiTotalProps').textContent = state.properties.length;
   const kpiPaid = document.getElementById('kpiPaidCount');
   if (kpiPaid) kpiPaid.textContent = `${fin.paidCount} / ${fin.activeTenantCount}`;
   document.getElementById('kpiOverdueCount').textContent = fin.overdueCount;
+
+  const kpiMonthly = document.getElementById('kpiMonthlyEstimate');
+  if (kpiMonthly) kpiMonthly.textContent = formatCurrency(monthlyPower);
   const kpiYearly = document.getElementById('kpiYearlyEstimate');
-  if (kpiYearly) kpiYearly.textContent = formatCurrency(fin.totalAccrued * 12);
+  if (kpiYearly) kpiYearly.textContent = formatCurrency(yearlyPower);
 
   renderQuickPropertiesBoard(periodKey);
   renderDashboardFancyVisuals(periodKey, fin);
@@ -1730,47 +1708,40 @@ function renderQuickPropertiesBoard(periodKey) {
     const isRented = prop.status === 'rented';
     let rowCls = 'prow-vacant';
     let badgeTxt = 'Boş Mülk';
-    let badgeSub = 'Kiracı Bekliyor';
 
     if (isRented) {
       if (info.status === 'paid') {
         rowCls = 'prow-paid';
         badgeTxt = '✓ Ödendi';
-        badgeSub = `Tahsilat Tamam`;
       } else if (info.status === 'overdue') {
         rowCls = 'prow-overdue';
-        badgeTxt = '! Gecikti';
-        badgeSub = `Kalan: ${formatCurrency(info.remaining)}`;
+        badgeTxt = `! Gecikti (Ayın ${info.dueDay}'i)`;
       } else if (info.status === 'partial') {
         rowCls = 'prow-partial';
-        badgeTxt = '½ Kısmi Ödeme';
-        badgeSub = `Kalan: ${formatCurrency(info.remaining)}`;
+        badgeTxt = `Kalan: ${formatCurrency(info.remaining)}`;
       } else {
         rowCls = 'prow-pending';
-        badgeTxt = `Ayın ${info.dueDay}'i`;
-        badgeSub = `Bekleyen: ${formatCurrency(info.remaining)}`;
+        badgeTxt = `Vade: Ayın ${info.dueDay}'i`;
       }
     }
 
     const cleanTitle = prop.name.replace(/^\d+\.\s*/, '');
 
     return `
-      <div class="exec-prop-row ${rowCls}" onclick="openPropertyQuickActionSheet('${prop.id}', '${periodKey}')">
+      <div class="exec-prop-row slim-row ${rowCls}" onclick="openPropertyQuickActionSheet('${prop.id}', '${periodKey}')">
         <div class="epr-num">${idx + 1}</div>
         <div class="epr-main">
           <div class="epr-title-line">
             <strong class="epr-name">${escapeHtml(cleanTitle)}</strong>
-            <span class="epr-type-tag">${escapeHtml(prop.type)} ${prop.rooms ? '• ' + escapeHtml(prop.rooms) : ''}</span>
+            <span class="epr-type-tag">${escapeHtml(prop.type)}${prop.rooms ? ' • ' + escapeHtml(prop.rooms) : ''}</span>
           </div>
           <div class="epr-sub-line">
             <span><i class="ph-fill ph-user"></i> ${escapeHtml(isRented ? prop.tenantName : 'Kiracı Atanmadı')}</span>
-            ${isRented ? `<span>• Vade: Ayın ${info.dueDay}'i</span>` : ''}
           </div>
         </div>
         <div class="epr-right">
           <strong class="epr-rent">${formatCurrency(prop.rentAmount)}</strong>
           <span class="epr-status-pill">${badgeTxt}</span>
-          <small class="epr-status-sub">${badgeSub}</small>
         </div>
         <div class="epr-actions" onclick="event.stopPropagation()">
           ${isRented && info.status !== 'paid' ? `
@@ -2090,16 +2061,19 @@ function renderUpcomingAgenda(periodKey) {
     return;
   }
 
-  container.innerHTML = items.map(it => `
-    <div class="rent-card ${it.typeClass}">
-      <div class="rc-top">
-        <div class="rc-title-group" onclick="openPropertyDetailModal('${it.propId}')">
-          <span class="rc-name">${escapeHtml(it.title)}</span>
-          <span class="rc-tenant">${escapeHtml(it.sub)}</span>
+  container.innerHTML = items.map((it, idx) => `
+    <div class="exec-prop-row slim-row ${it.typeClass === 'status-overdue' ? 'prow-overdue' : 'prow-partial'}" onclick="openPropertyDetailModal('${it.propId}')">
+      <div class="epr-num">${idx + 1}</div>
+      <div class="epr-main">
+        <div class="epr-title-line">
+          <strong class="epr-name">${escapeHtml(it.title)}</strong>
+          <span class="epr-status-pill">${escapeHtml(it.badgeText)}</span>
         </div>
-        <span class="status-pill ${it.badgeClass}">${escapeHtml(it.badgeText)}</span>
+        <div class="epr-sub-line">
+          <span>${escapeHtml(it.sub)}</span>
+        </div>
       </div>
-      <div class="rc-actions" style="margin-top:8px;">
+      <div class="epr-actions" onclick="event.stopPropagation()">
         ${it.actionHtml}
       </div>
     </div>
@@ -2408,45 +2382,48 @@ function renderCollectionsView() {
     if (items.length === 0) {
       container.innerHTML = `<div class="empty-state"><i class="ph-duotone ph-hand-coins"></i><strong>Bu filtrede tahakkuk kaydı yok</strong></div>`;
     } else {
-      container.innerHTML = items.map(({ prop, info }) => `
-        <div class="rent-card status-${info.status === 'unpaid' ? 'partial' : info.status}">
-          <div class="rc-top">
-            <div class="rc-title-group" onclick="openPropertyDetailModal('${prop.id}')">
-              <span class="rc-type-badge">Tahakkuk Günü: Her Ayın ${info.dueDay}'i • ${getPeriodTitle(periodKey)}</span>
-              <span class="rc-name">${escapeHtml(prop.name)}</span>
-              <span class="rc-tenant"><i class="ph-fill ph-user"></i> ${escapeHtml(prop.tenantName || '-')}</span>
-            </div>
-            <span class="status-pill ${info.pillClass}">${info.label}</span>
-          </div>
+      container.innerHTML = items.map(({ prop, info }, idx) => {
+        const rowCls = info.status === 'paid' ? 'prow-paid' : (info.status === 'overdue' ? 'prow-overdue' : (info.status === 'partial' ? 'prow-partial' : 'prow-pending'));
+        const cleanTitle = prop.name.replace(/^\d+\.\s*/, '');
+        const subMetric = info.status === 'paid'
+          ? `Ödenen: ${formatCurrency(info.paid)}`
+          : (info.paid > 0 ? `Ödenen: ${formatCurrency(info.paid)} • Kalan: ${formatCurrency(info.remaining)}` : `Kalan Alacak: ${formatCurrency(info.remaining)}`);
 
-          <div class="rc-middle" onclick="openPaymentModal('${prop.id}', '${periodKey}')">
-            <div class="rc-amount-col">
-              <span class="rc-amount-label">Tahakkuk</span>
-              <strong class="rc-amount-val">${formatCurrency(info.expected)}</strong>
+        return `
+          <div class="exec-prop-row slim-row ${rowCls}" onclick="openPaymentModal('${prop.id}', '${periodKey}')">
+            <div class="epr-num">${idx + 1}</div>
+            <div class="epr-main">
+              <div class="epr-title-line">
+                <strong class="epr-name">${escapeHtml(cleanTitle)}</strong>
+                <span class="epr-type-tag">Ayın ${info.dueDay}'i</span>
+              </div>
+              <div class="epr-sub-line">
+                <span><i class="ph-fill ph-user"></i> ${escapeHtml(prop.tenantName || '-')} • ${subMetric}</span>
+              </div>
             </div>
-            <div class="rc-amount-col">
-              <span class="rc-amount-label">Tahsilat</span>
-              <strong class="rc-amount-val text-success">${formatCurrency(info.paid)}</strong>
+            <div class="epr-right">
+              <strong class="epr-rent">${formatCurrency(info.expected)}</strong>
+              <span class="epr-status-pill">${escapeHtml(info.label)}</span>
             </div>
-            <div class="rc-amount-col">
-              <span class="rc-amount-label">Kalan Borç</span>
-              <strong class="rc-amount-val ${info.remaining > 0 ? 'text-danger' : 'text-muted'}">${formatCurrency(info.remaining)}</strong>
+            <div class="epr-actions" onclick="event.stopPropagation()">
+              ${info.status !== 'paid' ? `
+                <button class="epr-btn pay-pill" onclick="oneTapInstantCollect('${prop.id}', '${periodKey}')" title="Tam Tahsilat Onayla">
+                  <i class="ph-bold ph-check"></i> Ödendi
+                </button>
+              ` : ''}
+              <button class="epr-btn edit" onclick="openPaymentModal('${prop.id}', '${periodKey}')" title="Kısmi Ödeme / Tahsilat Detayı">
+                <i class="ph-bold ph-hand-coins"></i>
+              </button>
+              <button class="epr-btn whatsapp-mini" onclick="${info.status === 'paid' ? `sendThankYouWhatsApp('${prop.id}', '${periodKey}')` : `sendReminderWhatsApp('${prop.id}', '${periodKey}')`}" title="WhatsApp Mesajı">
+                <i class="ph-fill ph-whatsapp-logo"></i>
+              </button>
+              <button class="epr-btn receipt-mini" onclick="quickOpenLegalDoc('kira_makbuzu', '${prop.id}')" title="Resmî Makbuz PDF">
+                <i class="ph-bold ph-receipt"></i>
+              </button>
             </div>
           </div>
-
-          <div class="rc-actions">
-            <button class="btn-card ${info.status !== 'paid' ? 'collect' : ''}" onclick="openPaymentModal('${prop.id}', '${periodKey}')">
-              <i class="ph-bold ph-hand-coins"></i> ${info.status === 'paid' ? 'Tahsilat Detayı' : (info.status === 'partial' ? 'Kalanı Tahsil Et' : 'Tahsilat Gir')}
-            </button>
-            <button class="btn-card whatsapp" onclick="${info.status === 'paid' ? `sendThankYouWhatsApp('${prop.id}', '${periodKey}')` : `sendReminderWhatsApp('${prop.id}', '${periodKey}')`}">
-              <i class="ph-fill ph-whatsapp-logo"></i> ${info.status === 'paid' ? 'Teşekkür' : 'Hatırlat'}
-            </button>
-            <button class="btn-card receipt" onclick="quickOpenLegalDoc('kira_makbuzu', '${prop.id}')">
-              <i class="ph-bold ph-receipt"></i> Resmî Makbuz
-            </button>
-          </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
   }
 
