@@ -3008,10 +3008,30 @@ function openPropertyModal(propId = null) {
     document.getElementById('propCity').value = p.city || '';
     document.getElementById('propDistrict').value = p.district || '';
     document.getElementById('propNeighborhood').value = p.neighborhood || '';
+    const aveEl = document.getElementById('propAvenue');
+    if (aveEl) aveEl.value = p.avenue || '';
+    const strEl = document.getElementById('propStreet');
+    if (strEl) strEl.value = p.street || '';
+    const bldEl = document.getElementById('propBuildingDoor');
+    if (bldEl) bldEl.value = p.buildingDoor || '';
     document.getElementById('propAddress').value = p.address || '';
     document.getElementById('propDeedInfo').value = p.deedInfo || '';
+    const grossEl = document.getElementById('propGrossM2');
+    if (grossEl) grossEl.value = p.grossM2 || 120;
+    const netEl = document.getElementById('propNetM2');
+    if (netEl) netEl.value = p.netM2 || 100;
     document.getElementById('propM2').value = `${p.grossM2 || 120} / ${p.netM2 || 100}`;
-    document.getElementById('propRooms').value = p.rooms || '';
+    const roomSel = document.getElementById('propRooms');
+    if (roomSel) {
+      const rVal = p.rooms || '2+1';
+      if (![...roomSel.options].some(o => o.value === rVal)) {
+        const opt = document.createElement('option');
+        opt.value = rVal;
+        opt.textContent = rVal;
+        roomSel.appendChild(opt);
+      }
+      roomSel.value = rVal;
+    }
     document.getElementById('propDues').value = p.dues || '';
     document.getElementById('propPurchaseDate').value = p.purchaseDate || '';
     document.getElementById('propPurchasePrice').value = p.purchasePrice || '';
@@ -3051,7 +3071,14 @@ function savePropertyForm(e) {
   e.preventDefault();
   const id = document.getElementById('propId').value || ('prop_' + Date.now());
   const existing = state.properties.find(x => x.id === id);
-  const m2Parts = (document.getElementById('propM2').value || '120/100').split('/');
+  const grossM2Val = Number(document.getElementById('propGrossM2')?.value || 120);
+  const netM2Val = Number(document.getElementById('propNetM2')?.value || 100);
+  const aveVal = (document.getElementById('propAvenue')?.value || '').trim();
+  const strVal = (document.getElementById('propStreet')?.value || '').trim();
+  const bldVal = (document.getElementById('propBuildingDoor')?.value || '').trim();
+  const rawAddr = (document.getElementById('propAddress')?.value || '').trim();
+  const combinedAddress = [aveVal, strVal, bldVal, rawAddr].filter(Boolean).join(' ').trim();
+
   const status = document.getElementById('propStatus').value;
   const tName = document.getElementById('propQuickTenantName').value.trim();
   const tPhone = document.getElementById('propQuickTenantPhone').value.trim();
@@ -3091,7 +3118,7 @@ function savePropertyForm(e) {
       contractStart: cStart,
       contractEnd: cEnd,
       iban: tenIdx >= 0 ? state.tenants[tenIdx].iban : '',
-      noticeAddress: document.getElementById('propAddress').value.trim(),
+      noticeAddress: combinedAddress,
       notes: tenIdx >= 0 ? state.tenants[tenIdx].notes : '',
       isActive: true,
       previousProperties: tenIdx >= 0 ? state.tenants[tenIdx].previousProperties : []
@@ -3108,11 +3135,14 @@ function savePropertyForm(e) {
     city: document.getElementById('propCity').value.trim() || 'İstanbul',
     district: document.getElementById('propDistrict').value.trim(),
     neighborhood: document.getElementById('propNeighborhood').value.trim(),
-    address: document.getElementById('propAddress').value.trim(),
+    avenue: aveVal,
+    street: strVal,
+    buildingDoor: bldVal,
+    address: combinedAddress,
     deedInfo: document.getElementById('propDeedInfo').value.trim(),
-    grossM2: Number(m2Parts[0]?.trim() || 120),
-    netM2: Number(m2Parts[1]?.trim() || m2Parts[0]?.trim() || 100),
-    rooms: document.getElementById('propRooms').value.trim() || '2+1',
+    grossM2: grossM2Val,
+    netM2: netM2Val,
+    rooms: document.getElementById('propRooms').value || '2+1',
     dues: Number(document.getElementById('propDues').value || 0),
     purchaseDate: document.getElementById('propPurchaseDate').value,
     purchaseCurrency: document.getElementById('propPurchaseCurrency')?.value || 'USD',
