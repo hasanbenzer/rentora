@@ -3718,4 +3718,115 @@ html, body {
   font-size: 0.68rem !important;
 }
 
+/* 5. Ergonomic 3-Column Horizontal KPI Filter Bar (No Redundant 4th Box) */
+.kpi-strip.ergonomic-3-kpi {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 8px !important;
+  margin-bottom: 9px !important;
+}
+
+.ergonomic-3-kpi .kpi-pill {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 9px !important;
+  padding: 9px 11px !important;
+  border-radius: 13px !important;
+  background: var(--bg-surface) !important;
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03) !important;
+  cursor: pointer;
+  text-align: left !important;
+  transition: all 0.15s ease;
+}
+
+.ergonomic-3-kpi .kpi-pill::after {
+  display: none !important;
+}
+
+.ergonomic-3-kpi .kpi-pill.active-kpi {
+  border: 1.5px solid #00a878 !important;
+  background: linear-gradient(135deg, #ffffff 0%, rgba(0, 168, 120, 0.09) 100%) !important;
+  box-shadow: 0 4px 12px rgba(0, 168, 120, 0.14) !important;
+}
+
+:root[data-theme="dark"] .ergonomic-3-kpi .kpi-pill.active-kpi {
+  background: linear-gradient(135deg, #1e293b 0%, rgba(0, 168, 120, 0.18) 100%) !important;
+}
+
+.kpi-icon-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.05rem;
+  flex-shrink: 0;
+}
+
+.kpi-icon-dot.dot-navy {
+  background: rgba(15, 23, 42, 0.08);
+  color: #0f172a;
+}
+
+:root[data-theme="dark"] .kpi-icon-dot.dot-navy {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #f8fafc !important;
+}
+
+.kpi-icon-dot.dot-emerald {
+  background: rgba(16, 185, 129, 0.13) !important;
+  color: #059669 !important;
+}
+
+.kpi-icon-dot.dot-rose {
+  background: rgba(244, 63, 94, 0.12) !important;
+  color: #e11d48 !important;
+}
+
+.kpi-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+
+.ergonomic-3-kpi .kpi-txt {
+  font-size: 0.68rem !important;
+  font-weight: 700 !important;
+  color: var(--text-muted) !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ergonomic-3-kpi .kpi-num {
+  font-size: 0.98rem !important;
+  font-weight: 800 !important;
+  line-height: 1.15 !important;
+}
+
+@media (max-width: 440px) {
+  .ergonomic-3-kpi .kpi-pill {
+    padding: 8px 8px !important;
+    gap: 6px !important;
+  }
+  .kpi-icon-dot {
+    width: 26px;
+    height: 26px;
+    font-size: 0.9rem;
+    border-radius: 7px;
+  }
+  .ergonomic-3-kpi .kpi-txt {
+    font-size: 0.63rem !important;
+  }
+  .ergonomic-3-kpi .kpi-num {
+    font-size: 0.88rem !important;
+  }
+}
+
+
 
