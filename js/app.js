@@ -6,7 +6,7 @@
 const STORAGE_KEY = 'rentora_enterprise_v2';
 const MEMBERS_REGISTRY_KEY = 'rentora_members_registry_v1';
 const ACTIVE_SESSION_KEY = 'rentora_active_member_session_v1';
-const CURRENT_APP_VERSION = '1.2.4';
+const CURRENT_APP_VERSION = '1.2.5';
 const AUTH_GATE_STORAGE_KEY = 'rentora_device_auth_token_v1';
 const AUTH_EXPECTED_SHA256 = '7a29b5e673caa030731ebf304028832c0d4617404f395950cb64a2f80dbc0ae6';
 const LEGACY_KEYS = ['rentora_enterprise_v1', 'avigen_kira_takip_v1'];
@@ -1803,7 +1803,7 @@ function renderQuickPropertiesBoard(periodKey) {
           </div>
         </div>
         <div class="epr-right">
-          <strong class="epr-rent">${formatCurrency(prop.rentAmount)}</strong>
+          <strong class="epr-rent">${formatCurrency(info.expected || prop.rentAmount)}</strong>
           <span class="epr-status-pill">${badgeTxt}</span>
         </div>
         <div class="epr-actions" onclick="event.stopPropagation()">
@@ -1845,7 +1845,7 @@ function openPropertyQuickActionSheet(propId, periodKey = getPeriodKey()) {
       </div>
       <div style="text-align:right;">
         <span class="status-pill ${info.pillClass}">${info.label}</span>
-        <strong style="display:block; font-size:1.15rem; margin-top:6px;">${formatCurrency(prop.rentAmount)}/ay</strong>
+        <strong style="display:block; font-size:1.15rem; margin-top:6px;">${formatCurrency(info.expected || prop.rentAmount)}/ay</strong>
       </div>
     </div>
 
@@ -3903,8 +3903,8 @@ function openPaymentModal(propId, periodKey = getPeriodKey(), showSelector = fal
 
   const info = getPropertyPeriodStatus(prop, periodKey);
   document.getElementById('paymentModalTitle').textContent = info.status === 'paid'
-    ? `${getPeriodTitle(periodKey)} Tahsilat Tarihi & Detayı Düzenle`
-    : `${getPeriodTitle(periodKey)} Kira Tahsilatı Gir`;
+    ? `${getPeriodTitle(periodKey)} Tahakkuk, Tarih & Tahsilat Düzenle`
+    : `${getPeriodTitle(periodKey)} Kira Tahakkuk & Tahsilatı Gir`;
 
   const selGroup = document.getElementById('payPropertySelectGroup');
   if (selGroup) {
@@ -3929,7 +3929,16 @@ function openPaymentModal(propId, periodKey = getPeriodKey(), showSelector = fal
     <span class="status-pill ${info.pillClass}">${info.status === 'paid' ? 'Ödendi' : 'Kalan: ' + formatCurrency(info.remaining)}</span>
   `;
 
+  const expInp = document.getElementById('payExpectedAmountInput');
+  if (expInp) expInp.value = info.expected || prop.rentAmount || 0;
+
   document.getElementById('payAmountInput').value = info.remaining > 0 ? info.remaining : info.expected;
+
+  const pYear = String(periodKey || '').slice(0, 4) || activeYear;
+  const yrChk = document.getElementById('payApplyAccrualToYear');
+  const yrLbl = document.getElementById('payApplyAccrualToYearLabel');
+  if (yrChk) yrChk.checked = false;
+  if (yrLbl) yrLbl.textContent = `${pYear} yılındaki diğer ödenmemiş ayların kira tahakkukunu da bu tutara eşitle`;
 
   // Default to today's clicked date (or saved payment date if editing an existing payment), always editable!
   const todayIso = new Date().toISOString().slice(0, 10);
@@ -3952,13 +3961,7 @@ function openPaymentModal(propId, periodKey = getPeriodKey(), showSelector = fal
   if (eurEl) eurEl.value = fxForDate.EUR || 37.20;
   if (xauEl) xauEl.value = fxForDate.XAU || 3000;
 
-  document.getElementById('quickAmountPills').innerHTML = `
-    <span style="font-size:0.72rem; color:var(--text-muted);">Hızlı Seçim:</span>
-    ${info.remaining > 0 ? `<button type="button" class="rate-pill" onclick="document.getElementById('payAmountInput').value=${info.remaining}; updatePaymentFxEquivalentPreview();">Tamamı (${formatCurrency(info.remaining)})</button>` : ''}
-    <button type="button" class="rate-pill" onclick="document.getElementById('payAmountInput').value=${Math.round((info.remaining || info.expected) / 2)}; updatePaymentFxEquivalentPreview();">%50 Kısmi</button>
-    <button type="button" class="rate-pill" onclick="setQuickPaymentDate('${todayIso}')">📅 Bugün (${formatDateTR(todayIso)})</button>
-    <button type="button" class="rate-pill" onclick="setQuickPaymentDate('${accrualDateIso}')">🗓️ Tahakkuk (${formatDateTR(accrualDateIso)})</button>
-  `;
+  renderQuickPaymentPills(info, todayIso, accrualDateIso);
 
   const cancelBtn = document.getElementById('btnCancelPayment');
   if (cancelBtn) cancelBtn.style.display = info.paid > 0 ? 'inline-flex' : 'none';
@@ -3966,12 +3969,51 @@ function openPaymentModal(propId, periodKey = getPeriodKey(), showSelector = fal
   const submitBtn = document.getElementById('btnConfirmPaymentSubmit');
   if (submitBtn) {
     submitBtn.innerHTML = info.status === 'paid'
-      ? `<i class="ph-bold ph-floppy-disk"></i> Tarihi & Tahsilatı Güncelle`
-      : `<i class="ph-bold ph-check-circle"></i> Tahsilatı Onayla`;
+      ? `<i class="ph-bold ph-floppy-disk"></i> Tahakkuk & Tahsilatı Güncelle`
+      : `<i class="ph-bold ph-check-circle"></i> Kaydet / Tahsilatı Onayla`;
   }
 
   updatePaymentFxEquivalentPreview();
   openModal('paymentModal');
+}
+
+function renderQuickPaymentPills(info, todayIso, accrualDateIso) {
+  const expVal = Number(document.getElementById('payExpectedAmountInput')?.value || info?.expected || 0);
+  const alreadyPaid = (info && info.status !== 'paid') ? Number(info.paid || 0) : 0;
+  const remVal = Math.max(0, expVal - alreadyPaid);
+  const targetFull = remVal > 0 ? remVal : expVal;
+  const pillsBox = document.getElementById('quickAmountPills');
+  if (!pillsBox) return;
+
+  pillsBox.innerHTML = `
+    <span style="font-size:0.72rem; color:var(--text-muted);">Hızlı Seçim:</span>
+    <button type="button" class="rate-pill" onclick="document.getElementById('payAmountInput').value=${targetFull}; updatePaymentFxEquivalentPreview();">Tamamı (${formatCurrency(targetFull)})</button>
+    <button type="button" class="rate-pill" onclick="document.getElementById('payAmountInput').value=${Math.round(targetFull / 2)}; updatePaymentFxEquivalentPreview();">%50 Kısmi</button>
+    <button type="button" class="rate-pill" onclick="document.getElementById('payAmountInput').value=0; updatePaymentFxEquivalentPreview();">📝 Sadece Tahakkuk (0 ₺ Ödeme)</button>
+    <button type="button" class="rate-pill" onclick="setQuickPaymentDate('${todayIso}')">📅 Bugün (${formatDateTR(todayIso)})</button>
+    <button type="button" class="rate-pill" onclick="setQuickPaymentDate('${accrualDateIso}')">🗓️ Tahakkuk (${formatDateTR(accrualDateIso)})</button>
+  `;
+}
+
+function onPayExpectedAmountChange() {
+  const propId = document.getElementById('payPropertyId')?.value;
+  const periodKey = document.getElementById('payPeriodKey')?.value || getPeriodKey();
+  const prop = state.properties.find(p => p.id === propId);
+  const info = prop ? getPropertyPeriodStatus(prop, periodKey) : null;
+  const newExp = Number(document.getElementById('payExpectedAmountInput')?.value || 0);
+
+  // Sync collection amount input with the modified historical accrual amount
+  const paidSoFar = (info && info.status === 'partial') ? Number(info.paid || 0) : 0;
+  const payInp = document.getElementById('payAmountInput');
+  if (payInp && Number(payInp.value) !== 0) {
+    payInp.value = Math.max(0, newExp - paidSoFar);
+  }
+
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const dueDayStr = String(prop?.dueDay || 5).padStart(2, '0');
+  const accrualDateIso = `${periodKey}-${dueDayStr}`;
+  renderQuickPaymentPills(info, todayIso, accrualDateIso);
+  updatePaymentFxEquivalentPreview();
 }
 
 function infoHasCustomFx(propId, periodKey) {
@@ -4030,13 +4072,33 @@ function savePaymentForm(e) {
   const prop = state.properties.find(p => p.id === propId);
   if (!prop) return;
 
+  const info = getPropertyPeriodStatus(prop, periodKey);
+  const customExpected = Number(document.getElementById('payExpectedAmountInput')?.value ?? info.expected ?? prop.rentAmount ?? 0);
+  const expectedAmount = customExpected > 0 ? customExpected : (info.expected || Number(prop.rentAmount || 0));
+
   const enteredAmount = Number(document.getElementById('payAmountInput').value || 0);
   const dateVal = document.getElementById('payDateInput').value || new Date().toISOString().slice(0, 10);
   const methodVal = document.getElementById('payMethodInput').value;
   const noteVal = document.getElementById('payNoteInput').value.trim();
+  const applyToYear = Boolean(document.getElementById('payApplyAccrualToYear')?.checked);
 
-  const info = getPropertyPeriodStatus(prop, periodKey);
-  const expectedAmount = info.expected || Number(prop.rentAmount || 0);
+  if (applyToYear) {
+    const pYear = String(periodKey || '').slice(0, 4);
+    if (pYear) {
+      for (let m = 1; m <= 12; m++) {
+        const ymKey = `${pYear}-${String(m).padStart(2, '0')}`;
+        const existingRec = state.payments[`${propId}_${ymKey}`];
+        if (!existingRec || Number(existingRec.paidAmount || 0) === 0) {
+          state.payments[`${propId}_${ymKey}`] = {
+            ...(existingRec || {}),
+            paidAmount: 0,
+            expectedAmount,
+            tenantId: prop.tenantId
+          };
+        }
+      }
+    }
+  }
 
   const fxRates = {
     TRY: 1,
@@ -4045,7 +4107,27 @@ function savePaymentForm(e) {
     XAU: Number(document.getElementById('payFxXauInput')?.value || 3000)
   };
 
-  // If already paid, allow updating the payment date, FX rates, amount, method, and note directly!
+  // Case 1: Accrual-only update (0 TL payment entered) — lets user set historical rent accrual without marking paid!
+  if (enteredAmount <= 0 && info.paid <= 0) {
+    state.payments[`${propId}_${periodKey}`] = {
+      paidAmount: 0,
+      expectedAmount,
+      date: '',
+      method: methodVal,
+      note: noteVal || 'Dönem kira tahakkuku tanımlandı',
+      tenantId: prop.tenantId
+    };
+    saveState();
+    closeModal('paymentModal');
+    renderAll();
+    if (document.getElementById('detailModal')?.classList.contains('open')) {
+      openPropertyDetailModal(propId);
+    }
+    showToast(`📝 ${getPeriodTitle(periodKey)} kira tahakkuku ${formatCurrency(expectedAmount)} olarak kaydedildi!`);
+    return;
+  }
+
+  // Case 2: Already paid — allow updating expectedAmount, paidAmount, payment date, and FX rates directly!
   if (info.status === 'paid') {
     state.payments[`${propId}_${periodKey}`] = {
       paidAmount: enteredAmount,
@@ -4064,7 +4146,7 @@ function savePaymentForm(e) {
     if (document.getElementById('detailModal')?.classList.contains('open')) {
       openPropertyDetailModal(propId);
     }
-    showToast(`✅ ${prop.name} ödeme tarihi (${formatDateTR(dateVal)}) ve kur bilgileri güncellendi!`);
+    showToast(`✅ ${prop.name} (${getPeriodTitle(periodKey)}) tahakkuk, tarih ve kur bilgileri güncellendi!`);
     return;
   }
 
@@ -4074,7 +4156,7 @@ function savePaymentForm(e) {
     if (!confirm(`Girilen tutar (${formatCurrency(enteredAmount)}) ile toplam ödeme (${formatCurrency(newTotalPaid)}), dönem tahakkuku olan ${formatCurrency(expectedAmount)} tutarını aşıyor. Fazla kısmı sonraki aylara otomatik dağıtmak ister misiniz?`)) {
       return;
     }
-    distributeBulkPayment(prop, periodKey, enteredAmount, dateVal, methodVal, noteVal || 'Çoklu ay dağılımlı ödeme');
+    distributeBulkPayment(prop, periodKey, enteredAmount, dateVal, methodVal, noteVal || 'Çoklu ay dağılımlı ödeme', expectedAmount);
     closeModal('paymentModal');
     return;
   }
@@ -4101,7 +4183,7 @@ function savePaymentForm(e) {
     amount: enteredAmount,
     method: methodVal,
     actionType: newTotalPaid >= expectedAmount ? 'TAM TAHSİLAT' : 'KISMİ TAHSİLAT',
-    note: noteVal || (newTotalPaid < expectedAmount ? `Kalan borç: ${formatCurrency(expectedAmount - newTotalPaid)}` : `Ödeme Tarihi: ${formatDateTR(dateVal)}`)
+    note: noteVal || (newTotalPaid < expectedAmount ? `Tahakkuk: ${formatCurrency(expectedAmount)} • Kalan: ${formatCurrency(expectedAmount - newTotalPaid)}` : `Tahakkuk: ${formatCurrency(expectedAmount)} • Ödeme Tarihi: ${formatDateTR(dateVal)}`)
   });
 
   saveState();
@@ -4145,14 +4227,26 @@ function reverseMonthPayment() {
 // --- MULTI-MONTH BULK PAYMENT DISTRIBUTION ---
 function openBulkPaymentModal() {
   const sel = document.getElementById('bulkPayPropertyId');
-  sel.innerHTML = state.properties.filter(p => p.status === 'rented').map(p =>
+  const rented = state.properties.filter(p => p.status === 'rented');
+  sel.innerHTML = rented.map(p =>
     `<option value="${p.id}">${escapeHtml(p.name)} — ${escapeHtml(p.tenantName)} (${formatCurrency(p.rentAmount)}/ay)</option>`
   ).join('');
   document.getElementById('bulkPayStartMonth').value = getPeriodKey();
   document.getElementById('bulkPayTotalAmount').value = '';
   const dateInp = document.getElementById('bulkPayDateInput');
   if (dateInp) dateInp.value = new Date().toISOString().slice(0, 10);
+  onBulkPayPropertyChange();
   openModal('bulkPaymentModal');
+}
+
+function onBulkPayPropertyChange() {
+  const propId = document.getElementById('bulkPayPropertyId')?.value;
+  const prop = state.properties.find(p => p.id === propId);
+  const expInp = document.getElementById('bulkPayExpectedRentInput');
+  if (expInp && prop) {
+    const info = getPropertyPeriodStatus(prop, getPeriodKey());
+    expInp.value = info.expected || prop.rentAmount || 0;
+  }
 }
 
 function saveBulkPaymentForm(e) {
@@ -4161,33 +4255,39 @@ function saveBulkPaymentForm(e) {
   const prop = state.properties.find(p => p.id === propId);
   if (!prop) return;
 
+  const customMonthlyExpected = Number(document.getElementById('bulkPayExpectedRentInput')?.value || prop.rentAmount || 0);
   const totalAmount = Number(document.getElementById('bulkPayTotalAmount').value || 0);
   const startPeriod = document.getElementById('bulkPayStartMonth').value || getPeriodKey();
   const method = document.getElementById('bulkPayMethod').value;
   const note = document.getElementById('bulkPayNote').value.trim() || 'Toplu Kira Dağıtımı';
   const chosenDate = document.getElementById('bulkPayDateInput')?.value || new Date().toISOString().slice(0, 10);
 
-  distributeBulkPayment(prop, startPeriod, totalAmount, chosenDate, method, note);
+  distributeBulkPayment(prop, startPeriod, totalAmount, chosenDate, method, note, customMonthlyExpected);
   closeModal('bulkPaymentModal');
 }
 
-function distributeBulkPayment(prop, startPeriodKey, totalPool, dateStr, method, note) {
+function distributeBulkPayment(prop, startPeriodKey, totalPool, dateStr, method, note, customMonthlyExpected = 0) {
   let pool = Number(totalPool || 0);
   let [y, m] = startPeriodKey.split('-').map(Number);
   let affectedMonths = 0;
-  const fxRates = getHistoricalFxRates(dateStr);
 
-  while (pool > 0 && affectedMonths < 24) {
+  while (pool > 0 && affectedMonths < 36) {
     const pKey = getPeriodKey(y, m);
     const info = getPropertyPeriodStatus(prop, pKey);
-    const needed = info.remaining;
+    const monthExpected = customMonthlyExpected > 0 ? customMonthlyExpected : info.expected;
+    const needed = Math.max(0, monthExpected - info.paid);
 
     if (needed > 0) {
       const alloc = Math.min(pool, needed);
       const newPaid = info.paid + alloc;
+      const dueDayStr = String(prop.dueDay || 5).padStart(2, '0');
+      const accrualDate = `${pKey}-${dueDayStr}`;
+      const refDateForFx = (pKey < dateStr.slice(0, 7)) ? accrualDate : dateStr;
+      const fxRates = getHistoricalFxRates(refDateForFx);
+
       state.payments[`${prop.id}_${pKey}`] = {
         paidAmount: newPaid,
-        expectedAmount: info.expected,
+        expectedAmount: monthExpected,
         date: dateStr,
         dateExplicit: true,
         fxRates,
@@ -4205,7 +4305,7 @@ function distributeBulkPayment(prop, startPeriodKey, totalPool, dateStr, method,
         periodKey: pKey,
         amount: alloc,
         method,
-        actionType: newPaid >= info.expected ? 'TOPLU DAĞITIM (TAM)' : 'TOPLU DAĞITIM (KISMİ)',
+        actionType: newPaid >= monthExpected ? 'TOPLU DAĞITIM (TAM)' : 'TOPLU DAĞITIM (KISMİ)',
         note
       });
 
