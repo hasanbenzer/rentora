@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <!-- Pure White / Soft Pearl Base -->
+    <linearGradient id="pearlBase" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f5f3ff"/>
+    </linearGradient>
+    <!-- Genesis AI Style Violet -> Electric Blue -> Hot Pink Ribbon -->
+    <linearGradient id="genesisMain" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7c3aed"/>
+      <stop offset="48%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#ec4899"/>
+    </linearGradient>
+    <linearGradient id="genesisSecond" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ec4899"/>
+      <stop offset="50%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+    <filter id="softGlow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#7c3aed" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <!-- Squircle White Badge with Subtle Purple Border -->
+  <rect x="16" y="16" width="480" height="480" rx="120" fill="url(#pearlBase)" stroke="#e9d5ff" stroke-width="10"/>
+
+  <!-- Outer Luminous Orbital Ring -->
+  <circle cx="256" cy="256" r="186" fill="none" stroke="url(#genesisMain)" stroke-width="14" opacity="0.25"/>
+
+  <!-- Genesis AI Geometric Monogram Ribbon (Stylized 3D 'R' + Infinity Roof Apex) -->
+  <g filter="url(#softGlow)">
+    <!-- Left Vertical Pillar + Roof Peak -->
+    <path d="M148 376V178L256 96L364 178V234C364 268 334 288 296 292L368 376H302L236 296H204V376H148Z" fill="url(#genesisMain)"/>
+    <!-- Inner Counter Cutout -->
+    <path d="M204 246H284C302 246 312 234 312 216V198L256 156L204 196V246Z" fill="#ffffff"/>
+    <!-- Floating Genesis AI Sparkle Star at Top Right -->
+    <path d="M388 96C388 118 402 132 424 132C402 132 388 146 388 168C388 146 374 132 352 132C374 132 388 118 388 96Z" fill="url(#genesisSecond)"/>
+  </g>
+</svg>

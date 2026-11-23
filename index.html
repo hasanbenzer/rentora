@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>RENTORA — 10'lu Gayrimenkul & Kira Yönetim Platformu</title>
+
+  <!-- iOS & Android Standalone PWA Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="RENTORA" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#f3f6fa" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" href="logo.png" />
+  <link rel="apple-touch-icon" href="logo.png" />
+
+  <!-- Fonts & Phosphor Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- Optional PIN Lock Overlay -->
+  <div id="pinLockOverlay" class="pin-overlay no-print" style="display: none;">
+    <div class="pin-card">
+      <img src="logo.png" alt="Rentora Logo" style="width:74px; height:74px; border-radius:16px; object-fit:contain; background:#fff; padding:4px;" />
+      <h2>RENTORA Güvenlik Kilidi</h2>
+      <p>Portföy verilerinize erişmek için 4 haneli PIN kodunuzu girin</p>
+      <input type="password" id="pinUnlockInput" maxlength="4" inputmode="numeric" class="pin-input" placeholder="••••" oninput="checkPinUnlock()" />
+      <div id="pinErrorMsg" class="pin-error"></div>
+    </div>
+  </div>
+
+  <div class="app-shell">
+    <!-- ==================== BESPOKE RENTORA TOP BAR ==================== -->
+    <header class="topbar no-print">
+      <div class="brand" onclick="switchTab('dashboard')">
+        <div class="rentora-logo-emblem">
+          <img src="logo.png" alt="RENTORA Logo" class="rentora-logo-img" />
+        </div>
+        <div class="brand-text">
+          <div class="brand-title-row">
+            <span class="brand-title">RENTORA</span>
+            <span class="live-fx-chip" id="liveFxHeaderChip" onclick="event.stopPropagation(); refreshLiveMarketRates(true)" title="Canlı Döviz & Altın Kurlarını Güncelle">
+              <i class="ph-bold ph-arrows-clockwise"></i> <span id="liveFxTickerText">$ 34.50 • Gr 3.000₺</span>
+            </span>
+          </div>
+          <span class="brand-sub" id="ownerHeaderSub">Gayrimenkulünüzün Akıllı Yönetim Merkezi</span>
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        <!-- Period Selector Pill -->
+        <div class="period-pill-bar">
+          <button class="p-nav" onclick="changePeriod(-1)" aria-label="Önceki Ay"><i class="ph-bold ph-caret-left"></i></button>
+          <span class="p-label" id="currentPeriodLabel" onclick="resetToCurrentMonth()">Kasım 2026</span>
+          <button class="p-nav" onclick="changePeriod(1)" aria-label="Sonraki Ay"><i class="ph-bold ph-caret-right"></i></button>
+        </div>
+
+        <button class="icon-btn badge-wrap" onclick="openNotificationsModal()" title="Bildirim Merkezi">
+          <i class="ph-fill ph-bell-ringing"></i>
+          <span class="notif-dot" id="notifBadgeCount" style="display:none;">0</span>
+        </button>
+
+        <button class="icon-btn" onclick="openQrModal()" title="Telefona Kur">
+          <i class="ph-bold ph-qr-code"></i>
+        </button>
+
+        <button class="icon-btn" onclick="toggleTheme()" id="themeToggleBtn" title="Tema Değiştir">
+          <i class="ph ph-moon"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- ==================== MAIN SCROLLABLE VIEWPORT ==================== -->
+    <main class="main-viewport no-print">
+
+      <!-- ===================================================================
+           TAB 1: ANA SAYFA (TEK EKRANDA KOMPAKT KOKPİT — TIKLA DETAY AÇILSIN)
+           =================================================================== -->
+      <section class="tab-view active" id="view-dashboard">
+        <!-- 1. Compact Genesis Hero Banner (Purple -> Blue -> Pink) -->
+        <div class="hero-card compact-hero" onclick="openVisualAnalyticsModal()" title="Grafik ve Detaylı Analiz İçin Dokunun">
+          <div class="hero-top" style="margin-bottom:8px;">
+            <div>
+              <span class="hero-label" id="heroPeriodTitle">KASIM 2026 KİRA ÖZETİ • GRAFİK İÇİN DOKUNUN</span>
+              <div class="hero-amount-row">
+                <span class="hero-paid" id="statPaidAmount">0 ₺</span>
+                <span class="hero-expected">/ <span id="statExpectedAmount">0 ₺</span></span>
+              </div>
+              <div class="hero-sub-pill" id="heroCollectionRatioSub">10 Mülkten 0'ı Ödedi</div>
+            </div>
+
+            <!-- SVG Circular Gauge -->
+            <div class="hero-donut-wrap">
+              <svg viewBox="0 0 36 36" class="circular-chart">
+                <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                <path class="circle" id="heroSvgCircle" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+              </svg>
+              <span class="hero-donut-text" id="statPercentBadge">%0</span>
+            </div>
+          </div>
+
+          <div class="progress-track" style="margin-bottom:10px;">
+            <div class="progress-fill" id="statProgressBar" style="width: 0%"></div>
+          </div>
+
+          <div class="hero-stats-grid" onclick="event.stopPropagation()">
+            <div class="mini-stat" onclick="switchTab('collections'); setCollectionFilter('paid')">
+              <span class="mini-label"><span class="dot dot-blue"></span>Tahsil Edilen</span>
+              <strong class="mini-val" id="statCollectedMini">0 ₺</strong>
+            </div>
+            <div class="mini-stat" onclick="switchTab('collections'); setCollectionFilter('unpaid')">
+              <span class="mini-label"><span class="dot dot-purple"></span>Bekleyen</span>
+              <strong class="mini-val" id="statRemainingAmount">0 ₺</strong>
+            </div>
+            <div class="mini-stat" onclick="switchTab('collections'); setCollectionFilter('overdue')">
+              <span class="mini-label"><span class="dot dot-pink"></span>Geciken</span>
+              <strong class="mini-val" id="statOverdueAmount">0 ₺</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Compact 4-KPI + Quick Action Strip -->
+        <div class="kpi-strip compact-kpi">
+          <div class="kpi-pill" onclick="openVisualAnalyticsModal()">
+            <span class="kpi-num" id="kpiTotalProps">10</span>
+            <span class="kpi-txt">📊 Grafik Özeti</span>
+          </div>
+          <div class="kpi-pill" onclick="switchTab('collections'); setCollectionFilter('paid')">
+            <span class="kpi-num text-indigo" id="kpiPaidCount">0</span>
+            <span class="kpi-txt">✅ Ödeyen</span>
+          </div>
+          <div class="kpi-pill" onclick="switchTab('collections'); setCollectionFilter('overdue')">
+            <span class="kpi-num text-danger" id="kpiOverdueCount">0</span>
+            <span class="kpi-txt">🚨 Geciken</span>
+          </div>
+          <div class="kpi-pill" onclick="switchTab('reports')">
+            <span class="kpi-num text-sky" id="kpiYearlyEstimate">0 ₺</span>
+            <span class="kpi-txt">📈 Yıllık Güç</span>
+          </div>
+        </div>
+
+        <!-- 3. DUAL EXECUTIVE CHARTS ON HOME SCREEN:
+             (Left) Genel Tahsilat Grafiği  |  (Right) Edinim Maliyeti & Başa Baş (Amortisman) Grafiği -->
+        <div class="home-dual-charts-row">
+          <div class="home-mini-chart-card" onclick="openVisualAnalyticsModal()">
+            <div class="hmc-head">
+              <span class="hmc-title"><i class="ph-fill ph-chart-bar"></i> Genel Tahsilat Grafiği</span>
+              <span class="hmc-badge" id="homeColChartBadge">Detay</span>
+            </div>
+            <div id="homeGeneralCollectionChart" class="hmc-body"></div>
+          </div>
+
+          <div class="home-mini-chart-card" onclick="switchTab('reports'); selectReportCard('breakeven_roi')">
+            <div class="hmc-head">
+              <span class="hmc-title"><i class="ph-fill ph-scales"></i> Başa Baş & Amortisman</span>
+              <span class="hmc-badge roi" id="homeRoiChartBadge">Raporu Aç</span>
+            </div>
+            <div id="homeBreakevenRoiChart" class="hmc-body"></div>
+          </div>
+        </div>
+
+        <!-- 4. SINGLE-SCREEN 10-PROPERTY COMPACT GRID (Click any tile for instant detail & actions!) -->
+        <div class="cockpit-grid-header">
+          <span class="cgh-title"><i class="ph-fill ph-squares-four"></i> Gayrimenkullerim (Detay & Tahsilat İçin Kutuya Dokunun)</span>
+          <div style="display:flex; gap:6px;">
+            <button class="cgh-link" onclick="openQuickCollectSelector()"><i class="ph-bold ph-hand-coins"></i> Tahsilat</button>
+            <button class="cgh-link" onclick="openPropertyModal()"><i class="ph-bold ph-plus"></i> Mülk Ekle</button>
+          </div>
+        </div>
+        <div id="dashboardQuickPropertiesBoard" class="cockpit-10-grid"></div>
+
+        <!-- Hidden containers populated for instant modal popups -->
+        <div style="display:none;">
+          <div id="dashboardDonutChartBox"></div>
+          <div id="dashboardPropertyRankingBars"></div>
+          <div id="dashboardUpcomingList"></div>
+        </div>
+      </section>
+
+      <!-- ===================================================================
+           TAB 2: MÜLKLERİM & KİRACILAR (HER KARTTA BELİRGİN "MÜLK DÜZENLE" BUTONU)
+           =================================================================== -->
+      <section class="tab-view" id="view-properties">
+        <div class="segmented-control">
+          <button class="seg-btn active" id="segBtnProps" onclick="setPortfolioSubTab('properties')">
+            <i class="ph-bold ph-buildings"></i> Mülklerim (<span id="segCountProps">0</span>)
+          </button>
+          <button class="seg-btn" id="segBtnTenants" onclick="setPortfolioSubTab('tenants')">
+            <i class="ph-bold ph-users"></i> Kiracı Profilleri (<span id="segCountTenants">0</span>)
+          </button>
+        </div>
+
+        <!-- SUB-VIEW 2A: PROPERTIES LIST -->
+        <div id="subview-portfolio-properties">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">Gayrimenkul Portföyüm</h2>
+              <p class="section-sub">Kira tutarını, kiracıyı veya mülk bilgilerini değiştirmek için <strong>"Mülk Düzenle"</strong>ye dokunun</p>
+            </div>
+            <button class="btn-primary-sm" onclick="openPropertyModal()">
+              <i class="ph-bold ph-plus"></i> Yeni Mülk Ekle
+            </button>
+          </div>
+
+          <div class="search-filter-box">
+            <div class="search-input-wrap">
+              <i class="ph ph-magnifying-glass"></i>
+              <input type="text" id="propertySearch" placeholder="Mülk adı, kiracı, il/ilçe ara..." oninput="renderPropertiesView()" />
+            </div>
+            <div class="filter-chips" id="propTypeChips">
+              <button class="chip active" data-type="all" onclick="setPropertyTypeFilter('all')">Tümü</button>
+              <button class="chip" data-type="Daire" onclick="setPropertyTypeFilter('Daire')">🏠 Daire</button>
+              <button class="chip" data-type="Rezidans" onclick="setPropertyTypeFilter('Rezidans')">🏙️ Rezidans</button>
+              <button class="chip" data-type="Dükkan" onclick="setPropertyTypeFilter('Dükkan')">🏪 Dükkan</button>
+              <button class="chip" data-type="Ofis" onclick="setPropertyTypeFilter('Ofis')">🏢 Ofis</button>
+              <button class="chip" data-type="İş Yeri" onclick="setPropertyTypeFilter('İş Yeri')">🏭 İş Yeri</button>
+              <button class="chip" data-type="Depo" onclick="setPropertyTypeFilter('Depo')">📦 Depo</button>
+              <button class="chip" data-type="Arsa" onclick="setPropertyTypeFilter('Arsa')">🌳 Arsa</button>
+            </div>
+          </div>
+
+          <div id="portfolioList" class="cards-list"></div>
+        </div>
+
+        <!-- SUB-VIEW 2B: TENANTS LIST -->
+        <div id="subview-portfolio-tenants" style="display: none;">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">Kiracı Sicil & Ödeme Karneleri</h2>
+              <p class="section-sub">Aktif kiracılarınız, borç durumları ve ayrılan eski kiracı arşivi</p>
+            </div>
+            <button class="btn-primary-sm" onclick="openTenantModal()">
+              <i class="ph-bold ph-user-plus"></i> Yeni Kiracı
+            </button>
+          </div>
+
+          <div class="search-filter-box">
+            <div class="search-input-wrap">
+              <i class="ph ph-magnifying-glass"></i>
+              <input type="text" id="tenantSearchInput" placeholder="Kiracı adı, telefon veya mülk ara..." oninput="renderTenantsView()" />
+            </div>
+            <div class="filter-chips" id="tenantFilterChips">
+              <button class="chip active" data-tfilter="all" onclick="setTenantFilter('all')">Tümü</button>
+              <button class="chip" data-tfilter="active" onclick="setTenantFilter('active')">Aktif Kiracılar</button>
+              <button class="chip" data-tfilter="debt" onclick="setTenantFilter('debt')">Geciken / Borçlu</button>
+              <button class="chip" data-tfilter="former" onclick="setTenantFilter('former')">Eski Kiracılar</button>
+            </div>
+          </div>
+
+          <div id="tenantsListContainer" class="cards-list"></div>
+        </div>
+      </section>
+
+      <!-- ===================================================================
+           TAB 3: TAHSİLAT & 12 AYLIK ÖDEME MATRİSİ (COLLECTIONS)
+           =================================================================== -->
+      <section class="tab-view" id="view-collections">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">Kira Tahsilat & 12 Aylık Takip</h2>
+            <p class="section-sub" id="collectionsSubTitle">Kim ödedi, kim gecikti, kısmi ödeme ve toplu tahsilat</p>
+          </div>
+          <div style="display:flex; gap:6px;">
+            <button class="btn-outline-sm" onclick="openBulkPaymentModal()">
+              <i class="ph-bold ph-stack"></i> Toplu Tahsilat
+            </button>
+            <button class="btn-primary-sm" onclick="openQuickCollectSelector()">
+              <i class="ph-bold ph-hand-coins"></i> Tahsilat Gir
+            </button>
+          </div>
+        </div>
+
+        <div class="ledger-summary-row">
+          <div class="ledger-box">
+            <span class="l-label">Aylık Toplam Kira</span>
+            <strong class="l-val" id="colAccruedTotal">0 ₺</strong>
+          </div>
+          <div class="ledger-box income">
+            <span class="l-label">Tahsil Edilen</span>
+            <strong class="l-val" id="colCollectedTotal">0 ₺</strong>
+          </div>
+          <div class="ledger-box expense">
+            <span class="l-label">Kalan Alacak</span>
+            <strong class="l-val" id="colRemainingTotal">0 ₺</strong>
+          </div>
+        </div>
+
+        <!-- FANCY 10-PROPERTY x 12-MONTH YEARLY MATRIX TABLE -->
+        <div class="panel-card">
+          <div class="panel-card-header">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div class="panel-icon bg-indigo"><i class="ph-fill ph-calendar-check"></i></div>
+              <div>
+                <h3>Yıllık Kira Takip Çizelgesi (<span id="matrixYearTitle">2026</span> — Tüm Mülkler × 12 Ay)</h3>
+                <p>Hangi mülk hangi ay ödedi tek bakışta görün; kutucuğa dokunarak tahsilat girin</p>
+              </div>
+            </div>
+          </div>
+          <div id="yearlyRentMatrixBoard" class="yearly-matrix-scroll"></div>
+        </div>
+
+        <div class="search-filter-box">
+          <div class="search-input-wrap">
+            <i class="ph ph-magnifying-glass"></i>
+            <input type="text" id="collectionSearchInput" placeholder="Kiracı veya gayrimenkul ara..." oninput="renderCollectionsView()" />
+          </div>
+          <div class="filter-chips" id="collectionFilterChips">
+            <button class="chip active" data-cfilter="all" onclick="setCollectionFilter('all')">Tüm Mülkler</button>
+            <button class="chip" data-cfilter="unpaid" onclick="setCollectionFilter('unpaid')">Ödenmeyen / Kısmi</button>
+            <button class="chip" data-cfilter="overdue" onclick="setCollectionFilter('overdue')">Gecikmiş</button>
+            <button class="chip" data-cfilter="paid" onclick="setCollectionFilter('paid')">Tam Ödenen</button>
+          </div>
+        </div>
+
+        <div id="collectionsCardsList" class="cards-list"></div>
+
+        <!-- Audit Log -->
+        <div class="panel-card" style="margin-top: 16px;">
+          <div class="panel-card-header">
+            <div class="panel-icon bg-emerald"><i class="ph-fill ph-clock-counter-clockwise"></i></div>
+            <div>
+              <h3>Son Tahsilat Hareketleri</h3>
+              <p>Yapılan ödemeler, kısmi tahsilatlar ve iptal kayıtları</p>
+            </div>
+          </div>
+          <div id="paymentTransactionsAuditList" class="compact-list"></div>
+        </div>
+      </section>
+
+      <!-- ===================================================================
+           TAB 4: RAPORLAR, GRAFİKLER & TÜFE ZAM (DEDICATED VISUAL ANALYTICS TAB!)
+           =================================================================== -->
+      <section class="tab-view" id="view-reports">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">Görsel Raporlar, Grafikler & TÜFE Zam</h2>
+            <p class="section-sub">Portföy performans grafikleri, 9 resmi rapor ve kira artış motoru</p>
+          </div>
+          <div style="display:flex; gap:6px;">
+            <button class="btn-primary-sm" onclick="printCurrentReportPdf()">
+              <i class="ph-bold ph-file-pdf"></i> PDF İndir
+            </button>
+            <button class="btn-outline-sm" onclick="exportCurrentReportCsv()">
+              <i class="ph-bold ph-file-xls"></i> Excel İndir
+            </button>
+          </div>
+        </div>
+
+        <!-- Visual Report Type Cards (One-Tap Report Selector!) -->
+        <div class="report-cards-selector" id="reportCardsSelector">
+          <button class="rep-card-btn active" data-rep="breakeven_roi" onclick="selectReportCard('breakeven_roi')">
+            <i class="ph-fill ph-scales text-indigo"></i>
+            <strong>Başa Baş & Amortisman</strong>
+            <span>TL / USD / EUR / Altın (gr)</span>
+          </button>
+          <button class="rep-card-btn" data-rep="monthly_collection" onclick="selectReportCard('monthly_collection')">
+            <i class="ph-fill ph-check-square-offset text-sky"></i>
+            <strong>Aylık Tahsilat</strong>
+            <span>Bu ay kimler ödedi?</span>
+          </button>
+          <button class="rep-card-btn" data-rep="overdue_report" onclick="selectReportCard('overdue_report')">
+            <i class="ph-fill ph-warning-octagon text-danger"></i>
+            <strong>Geciken Kiralar</strong>
+            <span>Kalan borç listesi</span>
+          </button>
+          <button class="rep-card-btn" data-rep="property_based" onclick="selectReportCard('property_based')">
+            <i class="ph-fill ph-buildings text-indigo"></i>
+            <strong>Mülk Getirileri</strong>
+            <span>Mülk bazlı yıllık toplam</span>
+          </button>
+          <button class="rep-card-btn" data-rep="rent_increase" onclick="selectReportCard('rent_increase')">
+            <i class="ph-fill ph-trend-up text-sky"></i>
+            <strong>Zam & Sözleşme</strong>
+            <span>Artış tarihi gelenler</span>
+          </button>
+          <button class="rep-card-btn" data-rep="yearly_income" onclick="selectReportCard('yearly_income')">
+            <i class="ph-fill ph-calendar text-indigo"></i>
+            <strong>12 Aylık Gelir</strong>
+            <span>Ay ay yıllık tablo</span>
+          </button>
+        </div>
+
+        <!-- Hidden select synced for compatibility -->
+        <select id="reportTypeSelect" style="display:none;" onchange="renderActiveReport()">
+          <option value="breakeven_roi" selected>1. Edinim Maliyeti & Başa Baş (Amortisman) Raporu</option>
+          <option value="monthly_collection">2. Aylık Kira Tahsilat Raporu</option>
+          <option value="overdue_report">3. Gecikmiş Kira & Alacak Raporu</option>
+          <option value="property_based">4. Gayrimenkul Bazlı Kira Getiri Raporu</option>
+          <option value="rent_increase">5. Kira Artış & Sözleşme Yenileme Raporu</option>
+          <option value="yearly_income">6. Yıllık 12 Ay Kira Gelir Raporu</option>
+          <option value="deposit_report">7. Depozito Emanet & Doluluk Raporu</option>
+          <option value="tenant_based">8. Kiracı Sicil & Ödeme Raporu</option>
+          <option value="vacant_properties">9. Boş Gayrimenkul Raporu</option>
+          <option value="income_expense">10. Nakit Akış Raporu</option>
+        </select>
+
+        <!-- Dynamic Visual Chart + Table Output for Selected Report -->
+        <div class="panel-card">
+          <div id="reportVisualChartArea" class="report-visual-chart"></div>
+          <div id="reportOutputContainer" class="report-output-box"></div>
+        </div>
+
+        <!-- Built-in TÜFE Rent Increase Calculator right inside Reports/Zam Tab -->
+        <div class="panel-card">
+          <div class="panel-card-header">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div class="panel-icon bg-amber"><i class="ph-fill ph-trend-up"></i></div>
+              <div>
+                <h3>TÜFE Kira Artış (Zam) Hesaplama & Uygulama</h3>
+                <p>Mülkü seçin, TÜFE oranıyla yeni kirayı hesaplayıp tek tuşla mülke uygulayın</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-row-2">
+              <div class="form-group">
+                <label>Gayrimenkul & Kiracı Seçin</label>
+                <select id="calcPropertySelect" class="form-control" onchange="onCalcPropertyChange()"></select>
+              </div>
+              <div class="form-group">
+                <label>Taşınmaz Türü & Mevzuat</label>
+                <select id="calcLegalCategory" class="form-control" onchange="calculateRentIncrease()">
+                  <option value="konut">Konut / Mesken (TBK m.344 TÜFE)</option>
+                  <option value="isyeri">Çatılı İşyeri / Dükkan (TBK m.344)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row-3">
+              <div class="form-group">
+                <label>Mevcut Aylık Kira (₺)</label>
+                <input type="number" id="calcCurrentRent" class="form-control" value="28000" oninput="calculateRentIncrease()" />
+              </div>
+              <div class="form-group">
+                <label>TÜFE / Artış Oranı (%)</label>
+                <input type="number" step="0.01" id="calcRateInput" class="form-control" value="48.58" oninput="calculateRentIncrease()" />
+              </div>
+              <div class="form-group">
+                <label>Yeni Dönem Başlangıcı</label>
+                <input type="date" id="calcEffectiveDate" class="form-control" />
+              </div>
+            </div>
+
+            <div class="quick-rate-pills">
+              <span style="font-size:0.75rem; font-weight:700;">Hızlı Oran:</span>
+              <button type="button" class="rate-pill" onclick="setQuickRate(48.58)">%48,58 (TÜİK TÜFE)</button>
+              <button type="button" class="rate-pill" onclick="setQuickRate(51.26)">%51,26</button>
+              <button type="button" class="rate-pill" onclick="setQuickRate(45.00)">%45</button>
+              <button type="button" class="rate-pill" onclick="setQuickRate(35.00)">%35</button>
+              <button type="button" class="rate-pill" onclick="setQuickRate(25.00)">%25</button>
+              <label class="checkbox-label" style="margin-left:auto; font-size:0.76rem;">
+                <input type="checkbox" id="calcRoundCheckbox" onchange="calculateRentIncrease()" />
+                <span>50 ₺ katına yuvarla</span>
+              </label>
+            </div>
+
+            <div class="calc-result-box">
+              <div class="calc-res-item">
+                <span>Aylık Artış Tutarı</span>
+                <strong id="calcResIncrease">+0 ₺</strong>
+              </div>
+              <div class="calc-res-item highlight">
+                <span>Yeni Aylık Kira</span>
+                <strong id="calcResNewRent">0 ₺</strong>
+              </div>
+              <div class="calc-res-item">
+                <span>Yeni Yıllık Toplam</span>
+                <strong id="calcResYearly">0 ₺</strong>
+              </div>
+            </div>
+
+            <div class="form-row-3">
+              <button type="button" class="btn-primary-full" onclick="applyCalculatedRentToProperty()">
+                <i class="ph-bold ph-check-circle"></i> Yeni Kirayı Mülke Uygula
+              </button>
+              <button type="button" class="btn-outline-full" onclick="createIncreaseDocumentFromCalc()">
+                <i class="ph-bold ph-file-pdf"></i> Artış Bildirimi PDF
+              </button>
+              <button type="button" class="btn-whatsapp-full" onclick="sendRentIncreaseWhatsApp()">
+                <i class="ph-fill ph-whatsapp-logo"></i> WhatsApp Bildir
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================================================================
+           TAB 5: BELGELER, ASİSTAN & AYARLAR (DOCUMENTS & MANAGEMENT)
+           =================================================================== -->
+      <section class="tab-view" id="view-documents">
+        <div class="filter-chips" id="mgmtSubNavChips" style="margin-bottom: 14px;">
+          <button class="chip active" data-msub="docs_hub" onclick="switchSubManagement('docs_hub')">📄 14 Sözleşme & Belge (PDF)</button>
+          <button class="chip" data-msub="assistant" onclick="switchSubManagement('assistant')">🤖 Akıllı Kira Asistanı</button>
+          <button class="chip" data-msub="calendar" onclick="switchSubManagement('calendar')">📅 Ödeme Takvimi</button>
+          <button class="chip" data-msub="finance" onclick="switchSubManagement('finance')">🔧 Nadiren Olacak Gider/Bakım</button>
+          <button class="chip" data-msub="settings" onclick="switchSubManagement('settings')">⚙️ IBAN & Yedekleme</button>
+        </div>
+
+        <!-- 5A: 14 LEGAL DOCUMENTS HUB -->
+        <div class="mgmt-subview" id="msub-docs_hub">
+          <div class="panel-card">
+            <div class="panel-card-header">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div class="panel-icon bg-indigo"><i class="ph-fill ph-scales"></i></div>
+                <div>
+                  <h3>Otomatik Sözleşme, Tahliye Taahhüdü & Makbuz Üretici</h3>
+                  <p>Mülkü seçin; 6098 S. TBK uyumlu resmi belgeniz otomatik doldurulsun</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-grid">
+              <div class="form-group">
+                <label>1. Belge Şablonu Seçin (14 Resmî Belge)</label>
+                <select id="docBuilderTypeSelect" class="form-control" onchange="onDocBuilderSelectionChange()"></select>
+              </div>
+
+              <div class="form-row-2">
+                <div class="form-group">
+                  <label>2. Gayrimenkul Seçin</label>
+                  <select id="docBuilderPropertySelect" class="form-control" onchange="onDocBuilderPropertyChange()"></select>
+                </div>
+                <div class="form-group">
+                  <label>3. Kiracı Seçin</label>
+                  <select id="docBuilderTenantSelect" class="form-control" onchange="onDocBuilderSelectionChange()"></select>
+                </div>
+              </div>
+
+              <div id="docBuilderCustomFields" class="form-grid"></div>
+
+              <button type="button" class="btn-primary-full" onclick="openLegalDocumentPreview()">
+                <i class="ph-bold ph-file-pdf"></i> Belgeyi Önizle ve PDF Oluştur
+              </button>
+            </div>
+          </div>
+
+          <div id="docTemplatesCatalogGrid" class="doc-catalog-grid"></div>
+
+          <div class="panel-card" style="margin-top: 16px;">
+            <div class="panel-card-header">
+              <div class="panel-icon bg-sky"><i class="ph-fill ph-folders"></i></div>
+              <div>
+                <h3>Kaydedilen Belgeler Arşivi (<span id="savedDocsCount">0</span>)</h3>
+                <p>Oluşturduğunuz sözleşmeler ve makbuzlar</p>
+              </div>
+            </div>
+            <div id="savedDocumentsArchiveList" class="compact-list"></div>
+          </div>
+        </div>
+
+        <!-- 5B: AKILLI KİRA ASİSTANI -->
+        <div class="mgmt-subview" id="msub-assistant" style="display:none;">
+          <div class="panel-card">
+            <div class="panel-card-header">
+              <div class="panel-icon bg-indigo"><i class="ph-fill ph-sparkle"></i></div>
+              <div>
+                <h3>RENTORA Akıllı Portföy Asistanı</h3>
+                <p>10 gayrimenkulünüzün gerçek verileriyle anında analiz yapar</p>
+              </div>
+            </div>
+
+            <div class="assistant-quick-prompts">
+              <button class="prompt-chip" onclick="askRentoraAssistant('Bu ay ne kadar kira tahsil etmem gerekiyor?')">Bu ay ne kadar tahsil etmeliyim?</button>
+              <button class="prompt-chip" onclick="askRentoraAssistant('Hangi kiracılar ödemesini yapmadı veya gecikti?')">Hangi kiracılar ödeme yapmadı?</button>
+              <button class="prompt-chip" onclick="askRentoraAssistant('Hangi sözleşmelerin süresi ve kira artış dönemi yaklaşıyor?')">Sözleşmesi/zammı yaklaşanlar?</button>
+              <button class="prompt-chip" onclick="askRentoraAssistant('Hangi gayrimenkul daha fazla net gelir sağlıyor?')">En çok gelir sağlayan mülk?</button>
+              <button class="prompt-chip" onclick="askRentoraAssistant('Bu yıl toplam kira gelirim ne kadar?')">Bu yıl toplam kira gelirim ne kadar?</button>
+            </div>
+
+            <div id="assistantChatFeed" class="assistant-feed"></div>
+
+            <form class="assistant-input-bar" onsubmit="submitAssistantQuestion(event)">
+              <input type="text" id="assistantQueryInput" class="form-control" placeholder="Sorunuzu yazın..." />
+              <button type="submit" class="btn-primary"><i class="ph-bold ph-paper-plane-right"></i></button>
+            </form>
+          </div>
+        </div>
+
+        <!-- 5C: ÖDEME TAKVİMİ -->
+        <div class="mgmt-subview" id="msub-calendar" style="display: none;">
+          <div class="panel-card">
+            <div class="panel-card-header">
+              <div class="panel-icon bg-sky"><i class="ph-fill ph-calendar-check"></i></div>
+              <div>
+                <h3>Aylık Kira Vade & Sözleşme Takvimi (<span id="calendarPeriodTitle">Kasım 2026</span>)</h3>
+                <p>Ayın hangi günlerinde hangi mülkün kira ödemesi var</p>
+              </div>
+            </div>
+            <div id="calendarGridContainer" class="calendar-grid"></div>
+            <div id="calendarEventsList" class="compact-list" style="margin-top: 12px;"></div>
+          </div>
+        </div>
+
+        <!-- 5D: NADİREN OLACAK GİDER / BAKIM & DEPOZİTO -->
+        <div class="mgmt-subview" id="msub-finance" style="display: none;">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">İstisnai Mülk Gideri / Tadilat Kaydı</h2>
+              <p class="section-sub">Kombi bakımı, emlak vergisi veya DASK gibi nadiren oluşan masraflar</p>
+            </div>
+            <button class="btn-danger-sm" onclick="openFinanceModal('expense')"><i class="ph-bold ph-plus"></i> Masraf Kaydet</button>
+          </div>
+          <div style="display:none;">
+            <span id="finIncomeTotal"></span><span id="finExpenseTotal"></span><span id="finNetTotal"></span>
+            <div id="rentIncreaseHistoryList"></div>
+          </div>
+          <div id="ledgerTransactionsList" class="cards-list"></div>
+        </div>
+
+        <!-- 5E: IBAN, GÜVENLİK & YEDEKLEME -->
+        <div class="mgmt-subview" id="msub-settings" style="display: none;">
+          <div class="panel-card">
+            <div class="panel-card-header">
+              <div class="panel-icon bg-indigo"><i class="ph-fill ph-user-circle-gear"></i></div>
+              <div>
+                <h3>Mülk Sahibi & Banka (IBAN) Bilgileri</h3>
+                <p>WhatsApp hatırlatma mesajlarında ve kira sözleşmelerinde otomatik çıkar</p>
+              </div>
+            </div>
+            <div class="form-grid">
+              <div class="form-row-2">
+                <div class="form-group">
+                  <label>Mülk Sahibi Ad Soyad / Unvan</label>
+                  <input type="text" id="setOwnerName" class="form-control" />
+                </div>
+                <div class="form-group">
+                  <label>T.C. Kimlik / Vergi No</label>
+                  <input type="text" id="setOwnerIdentity" class="form-control" />
+                </div>
+              </div>
+              <div class="form-row-2">
+                <div class="form-group">
+                  <label>Telefon</label>
+                  <input type="tel" id="setOwnerPhone" class="form-control" />
+                </div>
+                <div class="form-group">
+                  <label>Banka Adı</label>
+                  <input type="text" id="setBankName" class="form-control" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Tebligat Adresi</label>
+                <input type="text" id="setOwnerAddress" class="form-control" />
+              </div>
+              <div class="form-group">
+                <label>IBAN Numarası (WhatsApp Mesajlarına Otomatik Eklenir)</label>
+                <div class="input-with-btn">
+                  <input type="text" id="setOwnerIban" class="form-control" />
+                  <button type="button" class="btn-inline" onclick="copyOwnerIban()"><i class="ph ph-copy"></i></button>
+                </div>
+              </div>
+              <div class="form-row-2">
+                <div class="form-group">
+                  <label>Uygulama PIN Şifresi (İsteğe Bağlı 4 Hane)</label>
+                  <input type="password" id="setSecurityPin" maxlength="4" inputmode="numeric" class="form-control" placeholder="Boş = Şifresiz" />
+                </div>
+                <div class="form-group">
+                  <label>KVKK Maskeleme</label>
+                  <select id="setKvkkMask" class="form-control">
+                    <option value="off">Tam Göster</option>
+                    <option value="on">TC ve IBAN Maskele (***)</option>
+                  </select>
+                </div>
+              </div>
+              <button type="button" class="btn-primary-full" onclick="saveOwnerSettings()">
+                <i class="ph-bold ph-floppy-disk"></i> Bilgileri Kaydet
+              </button>
+            </div>
+          </div>
+
+          <div class="panel-card">
+            <div class="panel-card-header">
+              <div class="panel-icon bg-emerald"><i class="ph-fill ph-database"></i></div>
+              <div>
+                <h3>Yedekleme & Excel Dışa Aktarım</h3>
+                <p>Tüm 10 gayrimenkulünüzün verilerini yedekleyin veya Excel'e indirin</p>
+              </div>
+            </div>
+            <div class="action-buttons-stack">
+              <button type="button" class="btn-action-row" onclick="exportExcelCsv()">
+                <i class="ph-fill ph-file-xls text-success"></i>
+                <div class="btn-action-text">
+                  <strong>Tüm Mülkleri ve Kira Tablosunu Excel'e İndir (CSV)</strong>
+                  <span>Gayrimenkul, kiracı ve tahsilat listesi</span>
+                </div>
+                <i class="ph ph-download-simple"></i>
+              </button>
+              <button type="button" class="btn-action-row" onclick="downloadBackupJson()">
+                <i class="ph-fill ph-cloud-arrow-down text-indigo"></i>
+                <div class="btn-action-text">
+                  <strong>Tam Yedek Dosyası İndir (.json)</strong>
+                  <span>Verilerinizi telefon veya bilgisayara yedekler</span>
+                </div>
+                <i class="ph ph-download-simple"></i>
+              </button>
+              <label class="btn-action-row" style="cursor: pointer;">
+                <i class="ph-fill ph-cloud-arrow-up text-amber"></i>
+                <div class="btn-action-text">
+                  <strong>Yedek Dosyasından Geri Yükle (.json)</strong>
+                  <span>İndirdiğiniz yedeği geri yükler</span>
+                </div>
+                <i class="ph ph-upload-simple"></i>
+                <input type="file" accept=".json" style="display: none;" onchange="restoreBackupJson(event)" />
+              </label>
+              <button type="button" class="btn-action-row" onclick="resetTo10PropertyDemoConfirm()">
+                <i class="ph-fill ph-arrows-clockwise text-sky"></i>
+                <div class="btn-action-text">
+                  <strong>10 Gayrimenkullü Örnek Portföyü Yeniden Yükle</strong>
+                  <span>10 mülk ve kiracı verisini sıfırdan kurar</span>
+                </div>
+                <i class="ph ph-play"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- ==================== 5-TAB BOTTOM NAVIGATION (TAILORED FOR 10-PROPERTY OWNER) ==================== -->
+    <nav class="bottom-nav no-print">
+      <button class="nav-tab active" data-tab="dashboard" onclick="switchTab('dashboard')">
+        <i class="ph-fill ph-squares-four"></i>
+        <span>Özet</span>
+      </button>
+      <button class="nav-tab" data-tab="properties" onclick="switchTab('properties')">
+        <i class="ph-fill ph-buildings"></i>
+        <span>Mülklerim</span>
+      </button>
+      <button class="nav-tab" data-tab="collections" onclick="switchTab('collections')">
+        <i class="ph-fill ph-hand-coins"></i>
+        <span>Tahsilat</span>
+      </button>
+      <button class="nav-tab" data-tab="reports" onclick="switchTab('reports')">
+        <i class="ph-fill ph-chart-pie-slice"></i>
+        <span>Rapor & Zam</span>
+      </button>
+      <button class="nav-tab" data-tab="documents" onclick="switchTab('documents')">
+        <i class="ph-fill ph-file-text"></i>
+        <span>Belgeler</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- ==================== MODAL 1: GAYRİMENKUL EKLE / DÜZENLE ==================== -->
+  <div class="modal-backdrop no-print" id="propertyModal">
+    <div class="modal-sheet modal-sheet-lg">
+      <div class="modal-header">
+        <h3 id="propertyModalTitle">Gayrimenkul & Kiracı Düzenle</h3>
+        <button class="modal-close" onclick="closeModal('propertyModal')"><i class="ph-bold ph-x"></i></button>
+      </div>
+      <form id="propertyForm" class="modal-body" onsubmit="savePropertyForm(event)">
+        <input type="hidden" id="propId" />
+
+        <div class="form-section-title">1. Gayrimenkul Bilgileri</div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Gayrimenkul Adı / Tanımı *</label>
+            <input type="text" id="propName" class="form-control" required placeholder="Örn: 1. Kadıköy Moda 3+1 Daire" />
+          </div>
+          <div class="form-group">
+            <label>Gayrimenkul Türü *</label>
+            <select id="propType" class="form-control">
+              <option value="Daire">🏠 Daire</option>
+              <option value="Rezidans">🏙️ Rezidans</option>
+              <option value="Dükkan">🏪 Dükkan</option>
+              <option value="Ofis">🏢 Ofis</option>
+              <option value="İş Yeri">🏭 İş Yeri</option>
+              <option value="Depo">📦 Depo</option>
+              <option value="Arsa">🌳 Arsa</option>
+              <option value="Bina">🏛️ Bina</option>
+              <option value="Diğer">📍 Diğer</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Doluluk Durumu</label>
+            <select id="propStatus" class="form-control" onchange="togglePropertyTenantQuickFields()">
+              <option value="rented">🟢 Kirada (Dolu)</option>
+              <option value="vacant">⚪ Boş (Kiracı Bekliyor)</option>
+              <option value="passive">⏸️ Pasif</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Aylık Kira Bedeli (₺) *</label>
+            <input type="number" id="propRentAmount" class="form-control" placeholder="32000" required />
+          </div>
+        </div>
+
+        <div id="propQuickTenantBox">
+          <div class="form-section-title">2. Kiracı & Sözleşme Bilgileri</div>
+          <div class="form-row-3">
+            <div class="form-group">
+              <label>Kiracı Ad Soyad / Firma</label>
+              <input type="text" id="propQuickTenantName" class="form-control" placeholder="Ahmet Yılmaz" />
+            </div>
+            <div class="form-group">
+              <label>Kiracı Telefon (WhatsApp)</label>
+              <input type="tel" id="propQuickTenantPhone" class="form-control" placeholder="0532 000 00 00" />
+            </div>
+            <div class="form-group">
+              <label>Kira Ödeme Günü (Ayın Kaçı?)</label>
+              <input type="number" id="propDueDay" class="form-control" min="1" max="31" value="5" />
+            </div>
+          </div>
+          <div class="form-row-3">
+            <div class="form-group">
+              <label>Sözleşme Başlangıç</label>
+              <input type="date" id="propContractStart" class="form-control" />
+            </div>
+            <div class="form-group">
+              <label>Sözleşme Bitiş / Zam Tarihi</label>
+              <input type="date" id="propContractEnd" class="form-control" />
+            </div>
+            <div class="form-group">
+              <label>Alınan Depozito (₺)</label>
+              <input type="number" id="propDepositAmount" class="form-control" placeholder="64000" />
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section-title">3. Edinim Maliyeti (Başa Baş / Amortisman Hesabı İçin)</div>
+        <div class="form-row-3">
+          <div class="form-group">
+            <label>Edinim (Alış) Tarihi</label>
+            <input type="date" id="propPurchaseDate" class="form-control" />
+          </div>
+          <div class="form-group">
+            <label>Edinim Maliyeti Para Birimi</label>
+            <select id="propPurchaseCurrency" class="form-control">
+              <option value="USD">💵 USD (Amerikan Doları)</option>
+              <option value="EUR">💶 EUR (Euro)</option>
+              <option value="XAU">🪙 Altın (Gram)</option>
+              <option value="TRY">₺ TRY (Türk Lirası)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Edinim Maliyeti (Seçili Birim Tutarı)</label>
+            <input type="number" step="0.01" id="propPurchaseCostInCurrency" class="form-control" placeholder="Örn: 120000 USD veya 2500 Gr Altın" />
+          </div>
+        </div>
+
+        <div class="form-section-title">4. Adres, Tapu & Detaylar</div>
+        <div class="form-row-3">
+          <div class="form-group">
+            <label>İl</label>
+            <input type="text" id="propCity" class="form-control" placeholder="İstanbul" />
+          </div>
+          <div class="form-group">
+            <label>İlçe</label>
+            <input type="text" id="propDistrict" class="form-control" placeholder="Kadıköy" />
+          </div>
+          <div class="form-group">
+            <label>Mahalle</label>
+            <input type="text" id="propNeighborhood" class="form-control" placeholder="Caferağa Mah." />
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Açık Adres</label>
+            <input type="text" id="propAddress" class="form-control" placeholder="Moda Cad. No:42 D:4" />
+          </div>
+          <div class="form-group">
+            <label>Tapu / Bağımsız Bölüm & Demirbaşlar</label>
+            <input type="text" id="propDeedInfo" class="form-control" placeholder="Kat:2 D:4 / Kombi, Ankastre" />
+          </div>
+        </div>
+
+        <div class="form-row-3">
+          <div class="form-group">
+            <label>Brüt / Net m²</label>
+            <input type="text" id="propM2" class="form-control" placeholder="130 / 110" />
+          </div>
+          <div class="form-group">
+            <label>Oda Sayısı</label>
+            <input type="text" id="propRooms" class="form-control" placeholder="3+1" />
+          </div>
+          <div class="form-group">
+            <label>Güncel Tahmini Değer (₺)</label>
+            <input type="number" id="propCurrentValue" class="form-control" placeholder="8500000" />
+          </div>
+        </div>
+
+        <!-- Hidden secondary fields preserved for full compatibility -->
+        <input type="hidden" id="propDues" value="0" />
+        <input type="hidden" id="propPurchasePrice" value="0" />
+        <input type="hidden" id="propFixtures" value="" />
+        <input type="hidden" id="propPhotoUrl" value="" />
+
+        <div class="modal-footer">
+          <button type="button" class="btn-danger-outline" id="btnDeletePropInModal" onclick="deletePropertyFromModal()" style="display:none;">
+            <i class="ph ph-trash"></i> Mülkü Sil
+          </button>
+          <button type="button" class="btn-secondary" onclick="closeModal('propertyModal')">İptal</button>
+          <button type="submit" class="btn-primary"><i class="ph-bold ph-check"></i> Değişiklikleri Kaydet</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 2: KİRACI EKLE / DÜZENLE ==================== -->
+  <div class="modal-backdrop no-print" id="tenantModal">
+    <div class="modal-sheet modal-sheet-lg">
+      <div class="modal-header">
+        <h3 id="tenantModalTitle">Kiracı Bilgilerini Düzenle</h3>
+        <button class="modal-close" onclick="closeModal('tenantModal')"><i class="ph-bold ph-x"></i></button>
+      </div>
+      <form id="tenantForm" class="modal-body" onsubmit="saveTenantForm(event)">
+        <input type="hidden" id="tenId" />
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Ad Soyad / Şirket Unvanı *</label>
+            <input type="text" id="tenName" class="form-control" required />
+          </div>
+          <div class="form-group">
+            <label>T.C. Kimlik No / Vergi No</label>
+            <input type="text" id="tenIdentity" class="form-control" />
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Telefon Numarası (WhatsApp) *</label>
+            <input type="tel" id="tenPhone" class="form-control" required />
+          </div>
+          <div class="form-group">
+            <label>E-Posta Adresi</label>
+            <input type="email" id="tenEmail" class="form-control" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Bağlı Olduğu Gayrimenkul *</label>
+          <select id="tenPropertyId" class="form-control" required></select>
+        </div>
+
+        <div class="form-row-3">
+          <div class="form-group">
+            <label>Aylık Kira Bedeli (₺) *</label>
+            <input type="number" id="tenRentAmount" class="form-control" required min="0" />
+          </div>
+          <div class="form-group">
+            <label>Ödeme Günü (1-31)</label>
+            <input type="number" id="tenDueDay" class="form-control" min="1" max="31" value="5" />
+          </div>
+          <div class="form-group">
+            <label>Depozito (₺)</label>
+            <input type="number" id="tenDepositAmount" class="form-control" min="0" />
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Sözleşme Başlangıç</label>
+            <input type="date" id="tenContractStart" class="form-control" />
+          </div>
+          <div class="form-group">
+            <label>Sözleşme Bitiş / Zam Tarihi</label>
+            <input type="date" id="tenContractEnd" class="form-control" />
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Kiracı IBAN</label>
+            <input type="text" id="tenIban" class="form-control" />
+          </div>
+          <div class="form-group">
+            <label>Tebligat Adresi / Kefil</label>
+            <input type="text" id="tenNoticeAddress" class="form-control" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Notlar</label>
+          <textarea id="tenNotes" class="form-control" rows="2"></textarea>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closeModal('tenantModal')">İptal</button>
+          <button type="submit" class="btn-primary"><i class="ph-bold ph-check"></i> Kiracıyı Kaydet</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 3: TEKLİ & KISMİ KİRA TAHSİLATI ==================== -->
+  <div class="modal-backdrop no-print" id="paymentModal">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <h3 id="paymentModalTitle">Kira Tahsilatı Gir</h3>
+        <button class="modal-close" onclick="closeModal('paymentModal')"><i class="ph-bold ph-x"></i></button>
+      </div>
+      <form id="paymentForm" class="modal-body" onsubmit="savePaymentForm(event)">
+        <input type="hidden" id="payPropertyId" />
+        <input type="hidden" id="payPeriodKey" />
+
+        <div class="pay-summary-banner" id="payPropertyBanner"></div>
+
+        <div class="form-group" id="payPropertySelectGroup" style="display: none;">
+          <label>Gayrimenkul / Kiracı Seçin</label>
+          <select id="payPropertyDropdown" class="form-control" onchange="onQuickCollectPropertyChange()"></select>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Tahsil Edilen Tutar (₺) *</label>
+            <input type="number" id="payAmountInput" class="form-control" required min="1" step="1" />
+          </div>
+          <div class="form-group">
+            <label>Tahsilat Tarihi *</label>
+            <input type="date" id="payDateInput" class="form-control" required />
+          </div>
+        </div>
+
+        <div class="quick-amount-pills" id="quickAmountPills"></div>
+
+        <div class="form-section-title" style="margin-top:4px;">Tahsil Tarihindeki Döviz & Altın Kuru (Başa Baş Raporu İçin)</div>
+        <div class="form-row-3">
+          <div class="form-group">
+            <label>1 USD Kuru (₺)</label>
+            <input type="number" step="0.01" id="payFxUsdInput" class="form-control" value="34.50" />
+          </div>
+          <div class="form-group">
+            <label>1 EUR Kuru (₺)</label>
+            <input type="number" step="0.01" id="payFxEurInput" class="form-control" value="37.20" />
+          </div>
+          <div class="form-group">
+            <label>1 Gr Altın Fiyatı (₺)</label>
+            <input type="number" step="1" id="payFxXauInput" class="form-control" value="3000" />
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Ödeme Yöntemi</label>
+            <select id="payMethodInput" class="form-control">
+              <option value="Banka Havale/EFT">🏦 Banka Havale / EFT</option>
+              <option value="FAST / Otomatik">⚡ FAST / Otomatik Ödeme</option>
+              <option value="Nakit">💵 Elden Nakit</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Açıklama</label>
+            <input type="text" id="payNoteInput" class="form-control" placeholder="İsteğe bağlı dekont notu" />
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-danger-outline" id="btnCancelPayment" onclick="reverseMonthPayment()" style="display: none;">
+            <i class="ph ph-arrow-counter-clockwise"></i> Ödemeyi İptal Et
+          </button>
+          <button type="button" class="btn-secondary" onclick="closeModal('paymentModal')">Vazgeç</button>
+          <button type="submit" class="btn-success">
+            <i class="ph-bold ph-check-circle"></i> Tahsilatı Onayla
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 4: ÇOKLU AY TOPLU TAHSİLAT ==================== -->
+  <div class="modal-backdrop no-print" id="bulkPaymentModal">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <h3>Toplu Kira Tahsilatı (Çoklu Ay Dağıtımı)</h3>
+        <button class="modal-close" onclick="closeModal('bulkPaymentModal')"><i class="ph-bold ph-x"></i></button>
+      </div>
+      <form class="modal-body" onsubmit="saveBulkPaymentForm(event)">
+        <div class="form-group">
+          <label>Gayrimenkul / Kiracı Seçin</label>
+          <select id="bulkPayPropertyId" class="form-control" required></select>
+        </div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Toplam Alınan Tutar (₺) *</label>
+            <input type="number" id="bulkPayTotalAmount" class="form-control" required min="1" placeholder="Örn: 90000" />
+          </div>
+          <div class="form-group">
+            <label>Başlangıç Dönemi</label>
+            <input type="month" id="bulkPayStartMonth" class="form-control" required />
+          </div>
+        </div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Ödeme Yöntemi</label>
+            <select id="bulkPayMethod" class="form-control">
+              <option value="Banka Havale/EFT">🏦 Banka Havale / EFT</option>
+              <option value="Nakit">💵 Nakit</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Açıklama</label>
+            <input type="text" id="bulkPayNote" class="form-control" placeholder="Toplu kira ödemesi" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closeModal('bulkPaymentModal')">İptal</button>
+          <button type="submit" class="btn-success"><i class="ph-bold ph-checks"></i> Aylara Dağıt ve Kaydet</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 5: NADİR GİDER / BAKIM KAYDI ==================== -->
+  <div class="modal-backdrop no-print" id="financeModal">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <h3 id="financeModalTitle">Mülk Bakım / Vergi Masrafı Kaydet</h3>
+        <button class="modal-close" onclick="closeModal('financeModal')"><i class="ph-bold ph-x"></i></button>
+      </div>
+      <form id="financeForm" class="modal-body" onsubmit="saveFinanceForm(event)">
+        <input type="hidden" id="finFlowType" value="expense" />
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>İlgili Gayrimenkul</label>
+            <select id="finPropertyId" class="form-control"></select>
+          </div>
+          <div class="form-group">
+            <label>Kategori</label>
+            <select id="finCategory" class="form-control"></select>
+          </div>
+        </div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Tutar (₺) *</label>
+            <input type="number" id="finAmount" class="form-control" required min="1" />
+          </div>
+          <div class="form-group">
+            <label>Tarih *</label>
+            <input type="date" id="finDate" class="form-control" required />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Açıklama</label>
+          <input type="text" id="finNote" class="form-control" />
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closeModal('financeModal')">İptal</button>
+          <button type="submit" class="btn-primary"><i class="ph-bold ph-check"></i> Kaydet</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 6: 360 DETAY & HIZLI MÜLK SEÇİCİ ==================== -->
+  <div class="modal-backdrop no-print" id="detailModal">
+    <div class="modal-sheet modal-sheet-lg">
+      <div class="modal-header">
+        <h3 id="detailModalTitle">Taşınmaz & Kiracı Karnesi</h3>
+        <button class="modal-close" onclick="closeModal('detailModal')"><i class="ph-bold ph-x"></i></button>
+      </div>
+      <div class="modal-body" id="detailModalBody"></div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 7: HUKUKİ BELGE & RAPOR PDF ÖNİZLEME ==================== -->
+  <div class="modal-backdrop" id="legalPreviewModal">
+    <div class="modal-sheet modal-sheet-lg">
+      <div class="modal-header no-print">
+        <h3 id="legalPreviewModalTitle">Belge & Rapor PDF Önizleme</h3>
+        <button class="modal-close" onclick="closeModal('legalPreviewModal')"><i class="ph-bold ph-x"></i></button>
+      </div>
+      <div class="modal-body">
+        <div id="legalPrintableContainer" class="legal-printable-wrapper"></div>
+        <div class="receipt-actions no-print">
+          <div class="form-row-2">
+            <button type="button" class="btn-primary-full" onclick="window.print()">
+              <i class="ph-bold ph-printer"></i> PDF İndir / Yazdır
+            </button>
+            <button type="button" class="btn-whatsapp-full" id="legalWhatsappShareBtn">
+              <i class="ph-fill ph-whatsapp-logo"></i> WhatsApp ile Gönder
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 8: BİLDİRİM MERKEZİ ==================== -->
+  <div class="modal-backdrop no-print" id="notificationsModal">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <h3>🔔 Bildirim & Uyarı Merkezi</h3>
+        <button class="modal-close" onclick="closeModal('notificationsModal')"><i class="ph-bold ph-x"></i></button>
+      </div>
+      <div class="modal-body" id="notificationsModalBody"></div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 9: TELEFONA KURULUM & QR ==================== -->
+  <div class="modal-backdrop no-print" id="qrModal">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <h3>📱 iPhone & Android Kurulum</h3>
+        <button class="modal-close" onclick="closeModal('qrModal')"><i class="ph-bold ph-x"></i></button>
+      </div>
+      <div class="modal-body" style="text-align: center;">
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
+          Telefonunuzdan QR kodu okutarak RENTORA'yı ana ekranınıza kurabilirsiniz:
+        </p>
+        <div class="qr-box">
+          <img id="qrCodeImg" alt="QR Kod" style="width: 185px; height: 185px; border-radius: 12px; background: #fff; padding: 8px;" />
+        </div>
+        <div class="lan-url-pill" onclick="copyLanUrl()">
+          <i class="ph ph-link"></i>
+          <span id="lanUrlText">http://localhost:8090</span>
+          <i class="ph ph-copy"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="toast-container no-print"></div>
+
+  <script src="js/documents.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
