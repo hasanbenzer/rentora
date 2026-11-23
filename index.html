@@ -872,50 +872,91 @@
           </div>
         </div>
 
-        <div class="form-section-title">4. Adres, Tapu & Detaylar</div>
+        <div class="form-section-title">4. Adres, Cadde/Sokak, m², Oda & Tapu Detayları</div>
         <div class="form-row-3">
           <div class="form-group">
             <label>İl</label>
-            <input type="text" id="propCity" class="form-control" placeholder="İstanbul" />
+            <input type="text" id="propCity" class="form-control" placeholder="Örn: İstanbul" />
           </div>
           <div class="form-group">
             <label>İlçe</label>
-            <input type="text" id="propDistrict" class="form-control" placeholder="Kadıköy" />
+            <input type="text" id="propDistrict" class="form-control" placeholder="Örn: Kadıköy" />
           </div>
           <div class="form-group">
             <label>Mahalle</label>
-            <input type="text" id="propNeighborhood" class="form-control" placeholder="Caferağa Mah." />
+            <input type="text" id="propNeighborhood" class="form-control" placeholder="Örn: Caferağa Mah." />
+          </div>
+        </div>
+
+        <div class="form-row-3">
+          <div class="form-group">
+            <label>Cadde / Bulvar</label>
+            <input type="text" id="propAvenue" class="form-control" placeholder="Örn: Bağdat Cad. / Moda Cad." />
+          </div>
+          <div class="form-group">
+            <label>Sokak</label>
+            <input type="text" id="propStreet" class="form-control" placeholder="Örn: Çiçek Sokak" />
+          </div>
+          <div class="form-group">
+            <label>Bina No / Kat / Daire No</label>
+            <input type="text" id="propBuildingDoor" class="form-control" placeholder="Örn: No:42 Kat:2 Daire:4" />
           </div>
         </div>
 
         <div class="form-row-2">
           <div class="form-group">
-            <label>Açık Adres</label>
-            <input type="text" id="propAddress" class="form-control" placeholder="Moda Cad. No:42 D:4" />
+            <label>Açık Adres / Tarif (İsteğe Bağlı Ek Bilgi)</label>
+            <input type="text" id="propAddress" class="form-control" placeholder="Cadde ve sokak birleşimi veya ek adres tarifi" />
           </div>
           <div class="form-group">
-            <label>Tapu / Bağımsız Bölüm & Demirbaşlar</label>
-            <input type="text" id="propDeedInfo" class="form-control" placeholder="Kat:2 D:4 / Kombi, Ankastre" />
+            <label>Tapu (Ada / Parsel) & Demirbaşlar</label>
+            <input type="text" id="propDeedInfo" class="form-control" placeholder="Örn: Ada:142 Parsel:11 / Kombi, Ankastre" />
           </div>
         </div>
 
         <div class="form-row-3">
           <div class="form-group">
-            <label>Brüt / Net m²</label>
-            <input type="text" id="propM2" class="form-control" placeholder="130 / 110" />
+            <label>Brüt m²</label>
+            <input type="number" id="propGrossM2" class="form-control" min="0" placeholder="Örn: 135" />
+          </div>
+          <div class="form-group">
+            <label>Net m²</label>
+            <input type="number" id="propNetM2" class="form-control" min="0" placeholder="Örn: 115" />
           </div>
           <div class="form-group">
             <label>Oda Sayısı</label>
-            <input type="text" id="propRooms" class="form-control" placeholder="3+1" />
+            <select id="propRooms" class="form-control">
+              <option value="1+0 (Stüdyo)">1+0 (Stüdyo)</option>
+              <option value="1+1">1+1</option>
+              <option value="2+1" selected>2+1</option>
+              <option value="3+1">3+1</option>
+              <option value="3+2">3+2</option>
+              <option value="4+1">4+1</option>
+              <option value="4+2">4+2</option>
+              <option value="5+1">5+1</option>
+              <option value="5+2 ve Üzeri">5+2 ve Üzeri</option>
+              <option value="Tek Bölüm (Dükkan/Mağaza)">Tek Bölüm (Dükkan/Mağaza)</option>
+              <option value="Açık Alan + Depo">Açık Alan + Depo</option>
+              <option value="Çok Bölmeli Ofis">Çok Bölmeli Ofis</option>
+              <option value="Müstakil / Komple Bina">Müstakil / Komple Bina</option>
+              <option value="Arsa / Tarla">Arsa / Tarla</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Güncel Tahmini Mülk Değeri (₺)</label>
+            <input type="number" id="propCurrentValue" class="form-control" placeholder="Örn: 8500000" />
           </div>
           <div class="form-group">
-            <label>Güncel Tahmini Değer (₺)</label>
-            <input type="number" id="propCurrentValue" class="form-control" placeholder="8500000" />
+            <label>Aylık Site / Bina Aidatı (₺)</label>
+            <input type="number" id="propDues" class="form-control" placeholder="Örn: 1500" />
           </div>
         </div>
 
         <!-- Hidden secondary fields preserved for full compatibility -->
-        <input type="hidden" id="propDues" value="0" />
+        <input type="hidden" id="propM2" value="" />
         <input type="hidden" id="propPurchasePrice" value="0" />
         <input type="hidden" id="propFixtures" value="" />
         <input type="hidden" id="propPhotoUrl" value="" />
