@@ -3201,3 +3201,211 @@ html, body {
   color: #e2e8f0;
   background: rgba(255, 255, 255, 0.08);
 }
+
+/* ==========================================================================
+   RENTORA V8 — UX POLISH: ACTIVE KPI FILTERS & ONE-TAP ACTION PILLS
+   ========================================================================== */
+
+.kpi-pill.active-kpi {
+  border-color: #00a878 !important;
+  background: linear-gradient(180deg, #ffffff 0%, rgba(0, 168, 120, 0.08) 100%) !important;
+  box-shadow: 0 4px 12px rgba(0, 168, 120, 0.14) !important;
+}
+
+.cgh-link.primary-pill {
+  background: #00a878 !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(0, 168, 120, 0.25);
+}
+
+.epr-btn.pay-pill {
+  width: auto !important;
+  padding: 0 10px !important;
+  height: 32px !important;
+  background: linear-gradient(135deg, #00a878, #008f65) !important;
+  border-color: transparent !important;
+  color: #ffffff !important;
+  font-size: 0.72rem !important;
+  font-weight: 800 !important;
+  gap: 4px !important;
+  box-shadow: 0 2px 6px rgba(0, 168, 120, 0.25);
+}
+
+.epr-btn.whatsapp-mini {
+  width: 32px !important;
+  height: 32px !important;
+  background: rgba(22, 163, 74, 0.1) !important;
+  border-color: rgba(22, 163, 74, 0.25) !important;
+  color: #16a34a !important;
+}
+
+.epr-btn.receipt-mini {
+  width: 32px !important;
+  height: 32px !important;
+  background: rgba(2, 132, 199, 0.1) !important;
+  border-color: rgba(2, 132, 199, 0.25) !important;
+  color: #0284c7 !important;
+}
+
+/* ==========================================================================
+   RENTORA V9 — AVIGEN-STYLE MEMBERSHIP, LICENSE PACKAGES & IN-APP UPDATE ENGINE
+   ========================================================================== */
+
+.auth-portal-card {
+  max-width: 440px !important;
+  width: 94% !important;
+  padding: 20px 18px !important;
+  max-height: 92vh;
+  overflow-y: auto;
+}
+
+.license-top-banner {
+  background: linear-gradient(90deg, #0b2545 0%, #00a878 100%);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 6px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.license-top-banner.expired {
+  background: linear-gradient(90deg, #9f1239 0%, #e11d48 100%);
+}
+
+.license-top-banner.warning {
+  background: linear-gradient(90deg, #92400e 0%, #d97706 100%);
+}
+
+.lic-status-card {
+  background: linear-gradient(135deg, #071930 0%, #0b2545 60%, #008f65 100%);
+  color: #ffffff;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 10px 24px -5px rgba(11, 37, 69, 0.28);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lic-status-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.lic-plan-badge {
+  background: rgba(0, 214, 143, 0.2);
+  border: 1px solid rgba(110, 231, 183, 0.35);
+  color: #6ee7b7;
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 99px;
+}
+
+.lic-packages-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 640px) {
+  .lic-packages-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.lic-pkg-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+}
+
+.lic-pkg-card.featured {
+  border: 2px solid #00a878;
+  background: linear-gradient(180deg, rgba(0, 168, 120, 0.06) 0%, var(--bg-surface) 100%);
+  box-shadow: 0 6px 18px rgba(0, 168, 120, 0.12);
+}
+
+.lic-pkg-popular {
+  position: absolute;
+  top: -9px;
+  right: 12px;
+  background: #00a878;
+  color: #ffffff;
+  font-size: 0.6rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 99px;
+  letter-spacing: 0.4px;
+}
+
+.lic-pkg-badge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #00a878;
+  letter-spacing: 0.5px;
+}
+
+.lic-pkg-card h4 {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.lic-pkg-price {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0b2545;
+}
+
+:root[data-theme="dark"] .lic-pkg-price {
+  color: #34d399;
+}
+
+.lic-pkg-price span {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.lic-pkg-yearly {
+  font-size: 0.71rem;
+  font-weight: 700;
+  color: #008f65;
+  margin-bottom: 4px;
+}
+
+.lic-pkg-features {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+}
+
+.lic-pkg-features li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lic-pkg-features li i {
+  color: #00a878;
+  font-size: 0.85rem;
+}
+
