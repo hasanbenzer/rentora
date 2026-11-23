@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rentora-pro-v15';
+const CACHE_NAME = 'rentora-pro-v16';
 const ASSETS = [
   './',
   './index.html',
@@ -7,6 +7,10 @@ const ASSETS = [
   './js/app.js',
   './manifest.json',
   './logo.png',
+  './apple-touch-icon.png',
+  './icon-192.png',
+  './icon-512.png',
+  './favicon.ico',
   './icon.svg'
 ];
 
