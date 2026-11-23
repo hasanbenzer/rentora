@@ -237,25 +237,29 @@
           </div>
         </div>
 
-        <!-- 2. Compact KPI + Quick Filter Strip (Shows Both Monthly & Yearly Rent Power!) -->
-        <div class="kpi-strip compact-kpi" id="homeKpiFilterStrip">
-          <div class="kpi-pill active-kpi" data-hfilter="all" onclick="setHomeFilter('all')">
-            <span class="kpi-num" id="kpiTotalProps">0</span>
-            <span class="kpi-txt">🏠 Tüm Mülkler</span>
-          </div>
-          <div class="kpi-pill" data-hfilter="paid" onclick="setHomeFilter('paid')">
-            <span class="kpi-num text-success" id="kpiPaidCount">0</span>
-            <span class="kpi-txt">✅ Ödeyen</span>
-          </div>
-          <div class="kpi-pill" data-hfilter="overdue" onclick="setHomeFilter('overdue')">
-            <span class="kpi-num text-danger" id="kpiOverdueCount">0</span>
-            <span class="kpi-txt">⏳ Bekleyen/Geciken</span>
-          </div>
-          <div class="kpi-pill kpi-power-dual" onclick="switchTab('reports')">
-            <div class="kpd-line"><span>Aylık:</span> <strong id="kpiMonthlyEstimate">0 ₺</strong></div>
-            <div class="kpd-line"><span>Yıllık:</span> <strong id="kpiYearlyEstimate">0 ₺</strong></div>
-            <span class="kpi-txt">📈 Aylık & Yıllık Kira Gücü</span>
-          </div>
+        <!-- 2. Ergonomic 3-Button Horizontal KPI & Filter Bar (No Redundant 4th Box) -->
+        <div class="kpi-strip ergonomic-3-kpi" id="homeKpiFilterStrip">
+          <button type="button" class="kpi-pill active-kpi" data-hfilter="all" onclick="setHomeFilter('all')">
+            <span class="kpi-icon-dot dot-navy"><i class="ph-fill ph-buildings"></i></span>
+            <div class="kpi-meta">
+              <span class="kpi-txt">Tüm Mülkler</span>
+              <strong class="kpi-num" id="kpiTotalProps">0</strong>
+            </div>
+          </button>
+          <button type="button" class="kpi-pill" data-hfilter="paid" onclick="setHomeFilter('paid')">
+            <span class="kpi-icon-dot dot-emerald"><i class="ph-fill ph-check-circle"></i></span>
+            <div class="kpi-meta">
+              <span class="kpi-txt">Ödeyen</span>
+              <strong class="kpi-num text-success" id="kpiPaidCount">0</strong>
+            </div>
+          </button>
+          <button type="button" class="kpi-pill" data-hfilter="overdue" onclick="setHomeFilter('overdue')">
+            <span class="kpi-icon-dot dot-rose"><i class="ph-fill ph-clock-countdown"></i></span>
+            <div class="kpi-meta">
+              <span class="kpi-txt">Bekleyen / Geciken</span>
+              <strong class="kpi-num text-danger" id="kpiOverdueCount">0</strong>
+            </div>
+          </button>
         </div>
 
         <!-- 3. DUAL EXECUTIVE CHARTS ON HOME SCREEN:
@@ -698,7 +702,7 @@
 
             <div id="inAppUpdateStatusBox" class="compact-row" style="margin-bottom:10px;">
               <div>
-                <strong style="font-size:0.84rem; display:block;" id="updateCheckTitle">Güncel Sürüm Kullanılıyor (v1.2.4)</strong>
+                <strong style="font-size:0.84rem; display:block;" id="updateCheckTitle">Güncel Sürüm Kullanılıyor (v1.2.5)</strong>
                 <span style="font-size:0.73rem; color:var(--text-muted);" id="updateCheckDesc">Son denetim: Bugün • Tüm gayrimenkul ve tahsilat verileriniz güvende.</span>
               </div>
               <button type="button" class="btn-primary-sm" onclick="checkAndApplyInAppUpdate()">
@@ -1284,16 +1288,25 @@
           <select id="payPropertyDropdown" class="form-control" onchange="onQuickCollectPropertyChange()"></select>
         </div>
 
-        <div class="form-row-2">
+        <div class="form-row-3">
           <div class="form-group">
-            <label>Tahsil Edilen Tutar (₺) *</label>
-            <input type="number" id="payAmountInput" class="form-control" required min="1" step="1" oninput="updatePaymentFxEquivalentPreview()" />
+            <label>Dönem Kira Tahakkuku (₺) *</label>
+            <input type="number" id="payExpectedAmountInput" class="form-control" required min="0" step="1" oninput="onPayExpectedAmountChange()" title="Geçmiş yıllar için o dönemin kira bedelini buradan değiştirebilirsiniz" />
           </div>
           <div class="form-group">
-            <label>Ödeme / Tahsilat Tarihi * (Değiştirilebilir)</label>
+            <label>Tahsil Edilen Tutar (₺) *</label>
+            <input type="number" id="payAmountInput" class="form-control" required min="0" step="1" oninput="updatePaymentFxEquivalentPreview()" />
+          </div>
+          <div class="form-group">
+            <label>Ödeme / Tahsilat Tarihi *</label>
             <input type="date" id="payDateInput" class="form-control" required onchange="onPayDateInputChange()" />
           </div>
         </div>
+
+        <label class="checkbox-label" style="font-size:0.74rem; color:var(--text-secondary); margin-top:-2px; margin-bottom:4px; display:flex; align-items:center; gap:6px; cursor:pointer;">
+          <input type="checkbox" id="payApplyAccrualToYear" />
+          <span id="payApplyAccrualToYearLabel">Bu yıldaki diğer ödenmemiş ayların kira tahakkukunu da bu tutara eşitle</span>
+        </label>
 
         <div class="quick-amount-pills" id="quickAmountPills"></div>
 
@@ -1352,13 +1365,19 @@
       <form class="modal-body" onsubmit="saveBulkPaymentForm(event)">
         <div class="form-group">
           <label>Gayrimenkul / Kiracı Seçin</label>
-          <select id="bulkPayPropertyId" class="form-control" required></select>
+          <select id="bulkPayPropertyId" class="form-control" required onchange="onBulkPayPropertyChange()"></select>
         </div>
-        <div class="form-row-3">
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>O Dönemin Aylık Kira Tahakkuku (₺) *</label>
+            <input type="number" id="bulkPayExpectedRentInput" class="form-control" required min="1" placeholder="Geçmiş yıl aylık kirası (Örn: 15000)" />
+          </div>
           <div class="form-group">
             <label>Toplam Alınan Tutar (₺) *</label>
             <input type="number" id="bulkPayTotalAmount" class="form-control" required min="1" placeholder="Örn: 90000" />
           </div>
+        </div>
+        <div class="form-row-2">
           <div class="form-group">
             <label>Başlangıç Dönemi</label>
             <input type="month" id="bulkPayStartMonth" class="form-control" required />
