@@ -3651,14 +3651,14 @@ html, body {
 
 .exec-prop-row.slim-row .epr-title-line {
   gap: 5px !important;
-  flex-wrap: nowrap !important;
+  flex-wrap: wrap !important;
 }
 
 .exec-prop-row.slim-row .epr-name {
-  font-size: 0.81rem !important;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 0.83rem !important;
+  white-space: normal !important;
+  line-height: 1.24 !important;
+  word-break: break-word;
 }
 
 .exec-prop-row.slim-row .epr-type-tag {
