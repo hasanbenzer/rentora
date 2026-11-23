@@ -105,6 +105,10 @@
         <input type="password" id="licenseAuthCodeInput" maxlength="12" inputmode="numeric" class="form-control" style="font-size:0.78rem; height:34px;" placeholder="Yönetici Kurulum Şifresi ile Hızlı Aç" />
         <button type="submit" class="btn-primary-sm" style="height:34px;">Doğrula</button>
       </form>
+
+      <button type="button" class="btn-whatsapp-full" style="margin-top:6px; height:36px; font-size:0.78rem;" onclick="openWhatsAppBackupModal('restore')">
+        <i class="ph-fill ph-whatsapp-logo"></i> WhatsApp Yedeğinden Tek Tuşla Geri Yükle
+      </button>
     </div>
   </div>
 
@@ -694,11 +698,20 @@
 
             <div id="inAppUpdateStatusBox" class="compact-row" style="margin-bottom:10px;">
               <div>
-                <strong style="font-size:0.84rem; display:block;" id="updateCheckTitle">Güncel Sürüm Kullanılıyor (v1.2.1)</strong>
+                <strong style="font-size:0.84rem; display:block;" id="updateCheckTitle">Güncel Sürüm Kullanılıyor (v1.2.3)</strong>
                 <span style="font-size:0.73rem; color:var(--text-muted);" id="updateCheckDesc">Son denetim: Bugün • Tüm gayrimenkul ve tahsilat verileriniz güvende.</span>
               </div>
               <button type="button" class="btn-primary-sm" onclick="checkAndApplyInAppUpdate()">
                 <i class="ph-bold ph-arrows-clockwise"></i> Güncellemeyi Denetle
+              </button>
+            </div>
+
+            <div class="form-row-2" style="margin-top:8px;">
+              <button type="button" class="btn-whatsapp-full" onclick="shareBackupViaWhatsApp()">
+                <i class="ph-fill ph-whatsapp-logo"></i> Yedeği WhatsApp'ta Kendimle Paylaş
+              </button>
+              <button type="button" class="btn-outline-full" onclick="openWhatsAppBackupModal('restore')">
+                <i class="ph-bold ph-clipboard-text"></i> WhatsApp Yedeğini Yapıştır & Yükle
               </button>
             </div>
           </div>
@@ -885,6 +898,22 @@
               </div>
             </div>
             <div class="action-buttons-stack">
+              <button type="button" class="btn-action-row" style="border-color:rgba(22,163,74,0.35); background:rgba(22,163,74,0.06);" onclick="shareBackupViaWhatsApp()">
+                <i class="ph-fill ph-whatsapp-logo" style="color:#16a34a;"></i>
+                <div class="btn-action-text">
+                  <strong style="color:#15803d;">💬 Yedeği WhatsApp'ta Kendimle Paylaş (Dosya Aramadan)</strong>
+                  <span>Tüm verilerinizi tek mesaj olarak WhatsApp'ta kendinize gönderir</span>
+                </div>
+                <i class="ph-bold ph-share-network" style="color:#16a34a;"></i>
+              </button>
+              <button type="button" class="btn-action-row" style="border-color:rgba(2,132,199,0.35); background:rgba(2,132,199,0.06);" onclick="openWhatsAppBackupModal('restore')">
+                <i class="ph-fill ph-clipboard-text text-sky"></i>
+                <div class="btn-action-text">
+                  <strong>📋 WhatsApp'taki Yedek Mesajını Yapıştır & Geri Yükle</strong>
+                  <span>Dosya aramadan, WhatsApp mesajını kopyalayıp yapıştırarak geri yükler</span>
+                </div>
+                <i class="ph-bold ph-arrow-counter-clockwise text-sky"></i>
+              </button>
               <button type="button" class="btn-action-row" onclick="exportExcelCsv()">
                 <i class="ph-fill ph-file-xls text-success"></i>
                 <div class="btn-action-text">
@@ -1459,6 +1488,48 @@
           <i class="ph ph-link"></i>
           <span id="lanUrlText">http://localhost:8090</span>
           <i class="ph ph-copy"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 10: WHATSAPP YEDEK PAYLAŞ & YAPIŞTIRARAK GERİ YÜKLE ==================== -->
+  <div class="modal-backdrop no-print" id="whatsappBackupModal" style="z-index: 1200;">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <h3>💬 WhatsApp Yedek Paylaş & Geri Yükle</h3>
+        <button class="modal-close" onclick="closeModal('whatsappBackupModal')"><i class="ph-bold ph-x"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="panel-card" style="margin-bottom:12px; background:rgba(22,163,74,0.06); border-color:rgba(22,163,74,0.28);">
+          <strong style="font-size:0.86rem; color:#15803d; display:block; margin-bottom:4px;">1. Mevcut Verilerimi WhatsApp'ta Kendime Gönder</strong>
+          <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:10px;">
+            Telefonda dosya aramakla uğraşmadan tüm mülk, kiracı ve tahsilat verilerinizi tek bir WhatsApp mesajı olarak kendinize ("Siz") gönderir.
+          </p>
+          <div class="form-row-2">
+            <button type="button" class="btn-whatsapp-full" onclick="shareBackupViaWhatsApp()">
+              <i class="ph-fill ph-whatsapp-logo"></i> WhatsApp'ta Kendime Gönder
+            </button>
+            <button type="button" class="btn-outline-full" onclick="copyWhatsAppBackupCodeOnly()">
+              <i class="ph-bold ph-copy"></i> Yedek Mesajını Kopyala
+            </button>
+          </div>
+        </div>
+
+        <div class="panel-card" style="margin-bottom:0;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <strong style="font-size:0.86rem; color:var(--text-main);">2. WhatsApp'taki Yedek Mesajını Yapıştır & Geri Yükle</strong>
+            <button type="button" class="btn-outline-sm" onclick="pasteFromClipboardToBackupBox()">
+              <i class="ph-bold ph-clipboard"></i> Panodan Yapıştır
+            </button>
+          </div>
+          <p style="font-size:0.74rem; color:var(--text-muted); margin-bottom:8px;">
+            WhatsApp'ta kendinize gönderdiğiniz yedek mesajını kopyalayıp aşağıdaki kutuya yapıştırın ve <strong>"Yedeği Şimdi Geri Yükle"</strong>ye dokunun:
+          </p>
+          <textarea id="waBackupPasteTextarea" class="form-control" rows="4" style="font-family:monospace; font-size:0.74rem; margin-bottom:10px;" placeholder="WhatsApp'tan kopyaladığınız RNTWA1:... yedek mesajını buraya yapıştırın..."></textarea>
+          <button type="button" class="btn-primary-full" onclick="restoreFromWhatsAppBackupText()">
+            <i class="ph-bold ph-check-circle"></i> Yedeği Şimdi Geri Yükle
+          </button>
         </div>
       </div>
     </div>
