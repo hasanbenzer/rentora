@@ -26,24 +26,81 @@
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-  <!-- Mandatory First-Install Authorization Gate (Protects Public Access) -->
+  <!-- ==================== MEMBERSHIP LOGIN / REGISTER & LICENSE GATE ==================== -->
   <div id="licenseAuthGateOverlay" class="pin-overlay no-print" style="display: flex;">
-    <div class="pin-card" style="max-width: 370px;">
-      <img src="logo.png" alt="Rentora Logo" style="width:82px; height:82px; border-radius:18px; object-fit:contain; background:#fff; padding:4px; box-shadow:0 6px 18px rgba(11,37,69,0.12);" />
-      <h2 style="font-size:1.12rem; font-weight:800; color:var(--text-main);">RENTORA Yetkili Kurulum</h2>
-      <p style="font-size:0.8rem; color:var(--text-muted); line-height:1.45;">
-        Bu uygulama özel erişime açıktır. Cihazınızı yetkilendirmek için <strong>8 haneli Kurulum Yetki Şifresini</strong> girin:
+    <div class="pin-card auth-portal-card">
+      <img src="logo.png" alt="Rentora Logo" style="width:76px; height:76px; border-radius:18px; object-fit:contain; background:#fff; padding:4px; box-shadow:0 6px 18px rgba(11,37,69,0.12);" />
+      <h2 style="font-size:1.14rem; font-weight:800; color:var(--text-main);">RENTORA Üye & Lisans Girişi</h2>
+      <p style="font-size:0.76rem; color:var(--text-muted); line-height:1.4; margin-bottom:4px;">
+        Gayrimenkulünüzün Akıllı Yönetim Merkezi • Kullanıcı Bazlı İzole Portföy
       </p>
-      <form onsubmit="verifyLicenseAuthCode(event)" style="width:100%; display:flex; flex-direction:column; align-items:center; gap:10px;">
-        <input type="password" id="licenseAuthCodeInput" maxlength="12" inputmode="numeric" class="pin-input" style="width:220px; font-size:1.35rem; letter-spacing:6px;" placeholder="••••••••" required />
-        <div id="licenseAuthErrorMsg" class="pin-error"></div>
+
+      <!-- Auth Tabs: Giriş Yap | Yeni Üye Ol | Yönetici Kurulum Kodu -->
+      <div class="segmented-control" style="width:100%; margin-bottom:10px;">
+        <button type="button" class="seg-btn active" id="authTabLoginBtn" onclick="switchAuthMode('login')">Giriş Yap</button>
+        <button type="button" class="seg-btn" id="authTabRegisterBtn" onclick="switchAuthMode('register')">Yeni Üye Ol (30 Gün)</button>
+      </div>
+
+      <!-- TAB 1: MEMBER LOGIN -->
+      <form id="authLoginForm" onsubmit="handleMemberLogin(event)" style="width:100%; display:flex; flex-direction:column; gap:9px; text-align:left;">
+        <div class="form-group">
+          <label>E-Posta veya Kullanıcı Adı / Kurulum Şifresi</label>
+          <input type="text" id="loginIdentifierInput" class="form-control" placeholder="E-posta veya Kurulum Kodu" required />
+        </div>
+        <div class="form-group">
+          <label>Şifre</label>
+          <input type="password" id="loginPasswordInput" class="form-control" placeholder="Şifreniz (Kurulum koduysa aynı kodu yazın)" />
+        </div>
+        <div id="licenseAuthErrorMsg" class="pin-error" style="text-align:center;"></div>
         <button type="submit" class="btn-primary-full" style="margin-top:4px;">
-          <i class="ph-bold ph-shield-check"></i> Cihazı Yetkilendir ve Aç
+          <i class="ph-bold ph-sign-in"></i> Portföyüme Giriş Yap
         </button>
       </form>
-      <small style="font-size:0.68rem; color:var(--text-muted); margin-top:4px;">
-        Bir kez doğrulandığında bu cihazda otomatik hatırlanır ve güncellemeler veri kayıpsız alınır.
-      </small>
+
+      <!-- TAB 2: NEW MEMBER REGISTRATION (30-DAY FREE TRIAL OR LICENSE KEY) -->
+      <form id="authRegisterForm" onsubmit="handleMemberRegister(event)" style="width:100%; display:none; flex-direction:column; gap:8px; text-align:left;">
+        <div class="form-group">
+          <label>Ad Soyad / Şirket Unvanı *</label>
+          <input type="text" id="regFullNameInput" class="form-control" placeholder="Örn: Ahmet Yılmaz" required />
+        </div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>E-Posta / Kullanıcı Adı *</label>
+            <input type="text" id="regEmailInput" class="form-control" placeholder="ornek@eposta.com" required />
+          </div>
+          <div class="form-group">
+            <label>Cep Telefonu *</label>
+            <input type="tel" id="regPhoneInput" class="form-control" placeholder="0532 000 00 00" required />
+          </div>
+        </div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Giriş Şifresi Belirleyin *</label>
+            <input type="password" id="regPasswordInput" class="form-control" placeholder="En az 4 karakter" required />
+          </div>
+          <div class="form-group">
+            <label>Başlangıç Paketi</label>
+            <select id="regPlanSelect" class="form-control">
+              <option value="trial">🎁 30 Gün Ücretsiz Deneme (5 Mülk)</option>
+              <option value="has_key">🔑 Lisans Anahtarım Var</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Lisans Anahtarı (İsteğe Bağlı — Sonradan da Girilebilir)</label>
+          <input type="text" id="regLicenseKeyInput" class="form-control" placeholder="RNT-XXXX-XXXX-XXXX" />
+        </div>
+        <div id="registerErrorMsg" class="pin-error" style="text-align:center;"></div>
+        <button type="submit" class="btn-primary-full" style="margin-top:4px;">
+          <i class="ph-bold ph-user-plus"></i> Üyeliği Oluştur ve Başla
+        </button>
+      </form>
+
+      <!-- Quick Master Code Bypass Link -->
+      <form onsubmit="verifyLicenseAuthCode(event)" style="width:100%; margin-top:8px; padding-top:8px; border-top:1px dashed var(--border-color); display:flex; gap:6px; align-items:center;">
+        <input type="password" id="licenseAuthCodeInput" maxlength="12" inputmode="numeric" class="form-control" style="font-size:0.78rem; height:34px;" placeholder="Yönetici Kurulum Şifresi ile Hızlı Aç" />
+        <button type="submit" class="btn-primary-sm" style="height:34px;">Doğrula</button>
+      </form>
     </div>
   </div>
 
@@ -93,11 +150,18 @@
           <i class="ph-bold ph-qr-code"></i>
         </button>
 
+        <button class="icon-btn" onclick="switchTab('documents'); switchSubManagement('license')" title="Üyelik, Lisans & Güncelleme">
+          <i class="ph-fill ph-crown"></i>
+        </button>
+
         <button class="icon-btn" onclick="toggleTheme()" id="themeToggleBtn" title="Tema Değiştir">
           <i class="ph ph-moon"></i>
         </button>
       </div>
     </header>
+
+    <!-- License / Trial Warning Banner (Visible when trial is expiring or expired) -->
+    <div id="licenseBannerBar" class="license-top-banner no-print" style="display:none;" onclick="switchTab('documents'); switchSubManagement('license')"></div>
 
     <!-- ==================== MAIN SCROLLABLE VIEWPORT ==================== -->
     <main class="main-viewport no-print">
@@ -148,23 +212,23 @@
           </div>
         </div>
 
-        <!-- 2. Compact 4-KPI + Quick Action Strip -->
-        <div class="kpi-strip compact-kpi">
-          <div class="kpi-pill" onclick="openVisualAnalyticsModal()">
-            <span class="kpi-num" id="kpiTotalProps">10</span>
-            <span class="kpi-txt">📊 Grafik Özeti</span>
+        <!-- 2. Compact 4-KPI + Quick Filter Strip (Directly filters the home property list!) -->
+        <div class="kpi-strip compact-kpi" id="homeKpiFilterStrip">
+          <div class="kpi-pill active-kpi" data-hfilter="all" onclick="setHomeFilter('all')">
+            <span class="kpi-num" id="kpiTotalProps">0</span>
+            <span class="kpi-txt">🏠 Tüm Mülkler</span>
           </div>
-          <div class="kpi-pill" onclick="switchTab('collections'); setCollectionFilter('paid')">
-            <span class="kpi-num text-indigo" id="kpiPaidCount">0</span>
+          <div class="kpi-pill" data-hfilter="paid" onclick="setHomeFilter('paid')">
+            <span class="kpi-num text-success" id="kpiPaidCount">0</span>
             <span class="kpi-txt">✅ Ödeyen</span>
           </div>
-          <div class="kpi-pill" onclick="switchTab('collections'); setCollectionFilter('overdue')">
+          <div class="kpi-pill" data-hfilter="overdue" onclick="setHomeFilter('overdue')">
             <span class="kpi-num text-danger" id="kpiOverdueCount">0</span>
-            <span class="kpi-txt">🚨 Geciken</span>
+            <span class="kpi-txt">🚨 Bekleyen/Geciken</span>
           </div>
           <div class="kpi-pill" onclick="switchTab('reports')">
             <span class="kpi-num text-sky" id="kpiYearlyEstimate">0 ₺</span>
-            <span class="kpi-txt">📈 Yıllık Güç</span>
+            <span class="kpi-txt">📈 Yıllık Kira Gücü</span>
           </div>
         </div>
 
@@ -188,12 +252,12 @@
           </div>
         </div>
 
-        <!-- 4. SINGLE-SCREEN 10-PROPERTY COMPACT GRID (Click any tile for instant detail & actions!) -->
+        <!-- 4. SINGLE-SCREEN PROPERTY LIST WITH INSTANT FILTER & ONE-TAP ACTIONS -->
         <div class="cockpit-grid-header">
-          <span class="cgh-title"><i class="ph-fill ph-squares-four"></i> Gayrimenkullerim (Detay & Tahsilat İçin Kutuya Dokunun)</span>
+          <span class="cgh-title" id="homeListHeaderTitle"><i class="ph-fill ph-buildings"></i> Gayrimenkullerim & Bu Ayki Durum</span>
           <div style="display:flex; gap:6px;">
-            <button class="cgh-link" onclick="openQuickCollectSelector()"><i class="ph-bold ph-hand-coins"></i> Tahsilat</button>
-            <button class="cgh-link" onclick="openPropertyModal()"><i class="ph-bold ph-plus"></i> Mülk Ekle</button>
+            <button class="cgh-link primary-pill" onclick="openPropertyModal()"><i class="ph-bold ph-plus"></i> Mülk Ekle</button>
+            <button class="cgh-link" onclick="openQuickCollectSelector()"><i class="ph-bold ph-hand-coins"></i> Hızlı Tahsilat</button>
           </div>
         </div>
         <div id="dashboardQuickPropertiesBoard" class="cockpit-10-grid"></div>
@@ -520,10 +584,160 @@
       <section class="tab-view" id="view-documents">
         <div class="filter-chips" id="mgmtSubNavChips" style="margin-bottom: 14px;">
           <button class="chip active" data-msub="docs_hub" onclick="switchSubManagement('docs_hub')">📄 14 Sözleşme & Belge (PDF)</button>
+          <button class="chip" data-msub="license" onclick="switchSubManagement('license')">👑 Üyelik, Lisans & Güncelleme</button>
           <button class="chip" data-msub="assistant" onclick="switchSubManagement('assistant')">🤖 Akıllı Kira Asistanı</button>
           <button class="chip" data-msub="calendar" onclick="switchSubManagement('calendar')">📅 Ödeme Takvimi</button>
-          <button class="chip" data-msub="finance" onclick="switchSubManagement('finance')">🔧 Nadiren Olacak Gider/Bakım</button>
+          <button class="chip" data-msub="finance" onclick="switchSubManagement('finance')">🔧 Nadir Gider/Bakım</button>
           <button class="chip" data-msub="settings" onclick="switchSubManagement('settings')">⚙️ IBAN & Yedekleme</button>
+        </div>
+
+        <!-- 5.0: ÜYELİK, LİSANS, AYLIK/YILLIK ABONELİK & UYGULAMA İÇİ GÜNCELLEME MERKEZİ -->
+        <div class="mgmt-subview" id="msub-license" style="display:none;">
+          <!-- Active Member & Subscription Card -->
+          <div class="panel-card">
+            <div class="panel-card-header">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div class="panel-icon bg-emerald"><i class="ph-fill ph-crown"></i></div>
+                <div>
+                  <h3 id="licActiveMemberTitle">Aktif Üyelik & Lisans Durumu</h3>
+                  <p id="licActiveMemberSub">Paket bilgileri, aylık/yıllık kullanım süresi ve mülk kapasitesi</p>
+                </div>
+              </div>
+              <button class="btn-danger-sm" onclick="logoutCurrentMember()">
+                <i class="ph-bold ph-sign-out"></i> Çıkış Yap
+              </button>
+            </div>
+
+            <div id="licenseStatusHeroBox" class="lic-status-card"></div>
+
+            <!-- Activate License Key Form -->
+            <form onsubmit="activateMemberLicenseKey(event)" class="form-grid" style="margin-top:12px;">
+              <div class="form-group">
+                <label>🔑 Aylık / Yıllık Lisans Anahtarı Etkinleştir</label>
+                <div class="input-with-btn">
+                  <input type="text" id="activateLicenseKeyInput" class="form-control" placeholder="RNT-XXXX-XXXX-XXXX-XXXX" required />
+                  <button type="submit" class="btn-primary" style="white-space:nowrap;">
+                    <i class="ph-bold ph-check-circle"></i> Etkinleştir
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <!-- Package Comparison Table (Bireysel, Portföy, Kurumsal) -->
+          <div class="panel-card">
+            <div class="panel-card-header">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div class="panel-icon bg-indigo"><i class="ph-fill ph-package"></i></div>
+                <div>
+                  <h3>RENTORA Aylık & Yıllık Lisans Paketleri</h3>
+                  <p>İhtiyacınıza uygun gayrimenkul kapasitesi ve abonelik planları</p>
+                </div>
+              </div>
+            </div>
+            <div class="lic-packages-grid">
+              <div class="lic-pkg-card">
+                <span class="pkg-tag">BAŞLANGIÇ</span>
+                <h4>Bireysel Paket</h4>
+                <strong class="pkg-limit">5 Gayrimenkul</strong>
+                <p>Bireysel mülk sahipleri için aylık kira, WhatsApp hatırlatma ve makbuz takibi.</p>
+              </div>
+              <div class="lic-pkg-card featured">
+                <span class="pkg-tag">EN POPÜLER</span>
+                <h4>Portföy Paketi</h4>
+                <strong class="pkg-limit">15 Gayrimenkul</strong>
+                <p>Döviz/Altın Başa Baş Amortisman Raporu, TÜFE zam motoru ve 14 TBK sözleşme PDF'i.</p>
+              </div>
+              <div class="lic-pkg-card">
+                <span class="pkg-tag">PROFESYONEL</span>
+                <h4>Kurumsal Sınırsız</h4>
+                <strong class="pkg-limit">Sınırsız Mülk</strong>
+                <p>Çoklu portföy yöneticileri ve emlak işletmeleri için sınırsız mülk ve tam raporlama.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- In-App Software Update & Version Check Card -->
+          <div class="panel-card">
+            <div class="panel-card-header">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div class="panel-icon bg-sky"><i class="ph-fill ph-cloud-arrow-down"></i></div>
+                <div>
+                  <h3>Yazılım Güncelleme & Sürüm Denetimi</h3>
+                  <p>Verileriniz silinmeden GitHub üzerinden en son RENTORA sürümünü denetler</p>
+                </div>
+              </div>
+              <span class="status-pill pill-paid" id="currentAppVersionBadge">v1.2.0</span>
+            </div>
+
+            <div id="inAppUpdateStatusBox" class="compact-row" style="margin-bottom:10px;">
+              <div>
+                <strong style="font-size:0.84rem; display:block;" id="updateCheckTitle">Güncel Sürüm Kullanılıyor (v1.2.0)</strong>
+                <span style="font-size:0.73rem; color:var(--text-muted);" id="updateCheckDesc">Son denetim: Bugün • Tüm gayrimenkul ve tahsilat verileriniz güvende.</span>
+              </div>
+              <button type="button" class="btn-primary-sm" onclick="checkAndApplyInAppUpdate()">
+                <i class="ph-bold ph-arrows-clockwise"></i> Güncellemeyi Denetle
+              </button>
+            </div>
+          </div>
+
+          <!-- Admin / Vendor License Key Generator (Unlocked with Master Code 88254716) -->
+          <div class="panel-card">
+            <div class="panel-card-header">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div class="panel-icon bg-amber"><i class="ph-fill ph-key"></i></div>
+                <div>
+                  <h3>Satıcı / Yönetici Lisans Anahtarı Üretici</h3>
+                  <p>Müşterileriniz için Aylık, 6 Aylık, Yıllık veya Sınırsız lisans kodu üretin</p>
+                </div>
+              </div>
+              <button type="button" class="btn-outline-sm" onclick="toggleVendorKeygenPanel()">
+                <i class="ph-bold ph-lock-key"></i> Yönetici Paneli Aç
+              </button>
+            </div>
+
+            <div id="vendorKeygenBody" style="display:none; margin-top:10px;">
+              <div class="form-grid">
+                <div class="form-row-3">
+                  <div class="form-group">
+                    <label>Müşteri Adı / E-Posta (İsteğe Bağlı)</label>
+                    <input type="text" id="kgCustomerName" class="form-control" placeholder="Örn: Mehmet Bey" />
+                  </div>
+                  <div class="form-group">
+                    <label>Lisans Paketi</label>
+                    <select id="kgPlanSelect" class="form-control">
+                      <option value="IND5">🏠 Bireysel Paket (5 Mülk)</option>
+                      <option value="PRO15" selected>🏢 Portföy Paketi (15 Mülk)</option>
+                      <option value="UNL">👑 Kurumsal Sınırsız Paket</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>Kullanım Süresi (Abonelik)</label>
+                    <select id="kgDurationSelect" class="form-control">
+                      <option value="30">📅 1 Aylık (30 Gün)</option>
+                      <option value="90">📅 3 Aylık (90 Gün)</option>
+                      <option value="180">📅 6 Aylık (180 Gün)</option>
+                      <option value="365" selected>🗓️ 1 Yıllık (365 Gün)</option>
+                      <option value="3650">♾️ Sınırsız / Ömür Boyu (10 Yıl)</option>
+                    </select>
+                  </div>
+                </div>
+                <button type="button" class="btn-primary-full" onclick="generateVendorLicenseKey()">
+                  <i class="ph-bold ph-magic-wand"></i> İmzalı Lisans Anahtarı Üret
+                </button>
+                <div id="kgResultBox" class="compact-row" style="display:none; background:rgba(0,168,120,0.1); border-color:#00a878;">
+                  <div>
+                    <span style="font-size:0.7rem; color:var(--text-muted); display:block;">Üretilen Müşteri Lisans Kodu:</span>
+                    <strong id="kgGeneratedKeyText" style="font-size:1.05rem; letter-spacing:1px; color:#008f65;">RNT-...</strong>
+                  </div>
+                  <div style="display:flex; gap:6px;">
+                    <button type="button" class="btn-primary-sm" onclick="copyGeneratedLicenseKey()"><i class="ph ph-copy"></i> Kopyala</button>
+                    <button type="button" class="btn-outline-sm" onclick="applyGeneratedKeyToSelf()">Hesabıma Uygula</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- 5A: 14 LEGAL DOCUMENTS HUB -->
