@@ -6,7 +6,7 @@
 const STORAGE_KEY = 'rentora_enterprise_v2';
 const MEMBERS_REGISTRY_KEY = 'rentora_members_registry_v1';
 const ACTIVE_SESSION_KEY = 'rentora_active_member_session_v1';
-const CURRENT_APP_VERSION = '1.2.7';
+const CURRENT_APP_VERSION = '1.2.8';
 const AUTH_GATE_STORAGE_KEY = 'rentora_device_auth_token_v1';
 const AUTH_EXPECTED_SHA256 = '7a29b5e673caa030731ebf304028832c0d4617404f395950cb64a2f80dbc0ae6';
 const LEGACY_KEYS = ['rentora_enterprise_v1', 'avigen_kira_takip_v1'];
@@ -1375,11 +1375,111 @@ function updatePeriodHeader() {
   const key = getPeriodKey();
   const title = getPeriodTitle(key);
   const lbl = document.getElementById('currentPeriodLabel');
-  if (lbl) lbl.textContent = title;
+  if (lbl) lbl.innerHTML = `<i class="ph-fill ph-calendar-blank" style="color:#00a878; margin-right:4px;"></i>${escapeHtml(title)} <i class="ph-bold ph-caret-down" style="font-size:0.65rem; opacity:0.75; margin-left:2px;"></i>`;
   const heroTitle = document.getElementById('heroPeriodTitle');
   if (heroTitle) heroTitle.textContent = `${title.toLocaleUpperCase('tr-TR')} KİRA PERFORMANSI`;
   const calTitle = document.getElementById('calendarPeriodTitle');
   if (calTitle) calTitle.textContent = title;
+}
+
+let pickerModalYear = activeYear;
+
+function openPeriodPickerModal() {
+  pickerModalYear = activeYear;
+  renderPeriodPickerModal();
+  openModal('periodPickerModal');
+}
+
+function shiftPickerYear(delta) {
+  pickerModalYear += delta;
+  renderPeriodPickerModal();
+}
+
+function setPickerYear(yr) {
+  pickerModalYear = Number(yr);
+  renderPeriodPickerModal();
+}
+
+function renderPeriodPickerModal() {
+  const yrLbl = document.getElementById('pickerSelectedYearLabel');
+  if (yrLbl) yrLbl.textContent = `${pickerModalYear} Yılı`;
+
+  const today = new Date();
+  const realY = today.getFullYear();
+  const realM = today.getMonth() + 1;
+
+  // Render quick year chips (from earliest property purchase year or 2020 up to realY + 1)
+  let minYr = 2020;
+  (state.properties || []).forEach(p => {
+    const py = Number(String(p.purchaseDate || '').slice(0, 4));
+    if (py >= 2015 && py < minYr) minYr = py;
+  });
+  const maxYr = Math.max(realY + 1, pickerModalYear);
+  const yearsList = [];
+  for (let y = minYr; y <= maxYr; y++) yearsList.push(y);
+
+  const qYearsBox = document.getElementById('pickerQuickYearsRow');
+  if (qYearsBox) {
+    qYearsBox.innerHTML = yearsList.map(y => `
+      <button type="button" class="picker-yr-chip ${y === pickerModalYear ? 'active' : ''}" onclick="setPickerYear(${y})">
+        ${y}
+      </button>
+    `).join('');
+  }
+
+  // Render 12 months 3x4 grid
+  const mGrid = document.getElementById('pickerMonthsGrid');
+  if (mGrid) {
+    mGrid.innerHTML = MONTHS_TR.map((mName, idx) => {
+      const mNum = idx + 1;
+      const pKey = getPeriodKey(pickerModalYear, mNum);
+      const fin = computePeriodFinancials(pKey);
+      const isSelected = (pickerModalYear === activeYear && mNum === activeMonth);
+      const isCurrentRealMonth = (pickerModalYear === realY && mNum === realM);
+
+      let subStatusHtml = '';
+      if (fin.activeTenantCount > 0) {
+        if (fin.paidCount >= fin.activeTenantCount) {
+          subStatusHtml = `<span class="pm-sub paid">✓ ${fin.paidCount}/${fin.activeTenantCount} Ödedi</span>`;
+        } else if (fin.paidCount > 0) {
+          subStatusHtml = `<span class="pm-sub partial">${fin.paidCount}/${fin.activeTenantCount} Ödedi</span>`;
+        } else {
+          subStatusHtml = `<span class="pm-sub pending">${formatCurrency(fin.totalAccrued)}</span>`;
+        }
+      } else {
+        subStatusHtml = `<span class="pm-sub">${pickerModalYear}</span>`;
+      }
+
+      return `
+        <button type="button" class="picker-month-card ${isSelected ? 'selected' : ''} ${isCurrentRealMonth ? 'today-month' : ''}" onclick="selectPeriodFromPicker(${pickerModalYear}, ${mNum})">
+          <div class="pm-top">
+            <strong class="pm-name">${mName}</strong>
+            ${isCurrentRealMonth ? '<span class="pm-today-dot" title="İçinde Bulunduğumuz Ay">Bugün</span>' : ''}
+          </div>
+          ${subStatusHtml}
+        </button>
+      `;
+    }).join('');
+  }
+}
+
+function selectPeriodFromPicker(yr, mo) {
+  activeYear = Number(yr);
+  activeMonth = Number(mo);
+  updatePeriodHeader();
+  closeModal('periodPickerModal');
+  renderAll();
+  showToast(`📅 ${getPeriodTitle(getPeriodKey())} dönemine geçildi`);
+}
+
+function selectCurrentMonthFromPicker() {
+  const t = new Date();
+  activeYear = t.getFullYear();
+  activeMonth = t.getMonth() + 1;
+  updatePeriodHeader();
+  closeModal('periodPickerModal');
+  renderAll();
+  showToast('📅 Güncel aya dönüldü');
 }
 
 // ==================== DETERMINISTIC ACCRUAL & COLLECTION ENGINE ====================
