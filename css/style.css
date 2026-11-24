@@ -3988,6 +3988,160 @@ html, body {
   color: #ffffff;
 }
 
+/* ==========================================================================
+   RENTORA V12 — INTERACTIVE MONTH & YEAR CALENDAR PICKER MODAL
+   ========================================================================== */
+
+.picker-year-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: #ffffff;
+  padding: 10px 12px;
+  border-radius: 13px;
+  margin-bottom: 10px;
+}
+
+.picker-yr-nav {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 6px 11px;
+  border-radius: 9px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.picker-yr-nav:active {
+  transform: scale(0.97);
+}
+
+.picker-yr-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #38bdf8;
+}
+
+.picker-quick-years {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  margin-bottom: 10px;
+}
+
+.picker-yr-chip {
+  border: 1px solid var(--border-color);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  font-weight: 800;
+  padding: 5px 11px;
+  border-radius: 99px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.14s ease;
+}
+
+.picker-yr-chip.active {
+  background: #00a878;
+  border-color: #00a878;
+  color: #ffffff;
+  box-shadow: 0 3px 8px rgba(0, 168, 120, 0.25);
+}
+
+.picker-months-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.picker-month-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 5px;
+  padding: 10px 11px;
+  border-radius: 12px;
+  background: var(--bg-elevated);
+  border: 1.5px solid var(--border-color);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.14s ease;
+}
+
+.picker-month-card:hover {
+  border-color: rgba(0, 168, 120, 0.45);
+}
+
+.picker-month-card.selected {
+  border-color: #00a878;
+  background: linear-gradient(135deg, rgba(0, 168, 120, 0.12) 0%, var(--bg-surface) 100%);
+  box-shadow: 0 4px 12px rgba(0, 168, 120, 0.16);
+}
+
+.picker-month-card.today-month {
+  border-color: #0284c7;
+}
+
+.pm-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 4px;
+}
+
+.pm-name {
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.picker-month-card.selected .pm-name {
+  color: #008f65;
+}
+
+:root[data-theme="dark"] .picker-month-card.selected .pm-name {
+  color: #34d399;
+}
+
+.pm-today-dot {
+  font-size: 0.56rem;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 99px;
+  background: rgba(2, 132, 199, 0.14);
+  color: #0284c7;
+}
+
+.pm-sub {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.pm-sub.paid {
+  color: #059669;
+}
+
+.pm-sub.partial {
+  color: #d97706;
+}
+
+.pm-sub.pending {
+  color: var(--text-secondary);
+}
+
+
 
 
 
