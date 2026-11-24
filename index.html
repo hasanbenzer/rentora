@@ -164,9 +164,9 @@
 
         <!-- Period Selector Pill -->
         <div class="period-pill-bar">
-          <button class="p-nav" onclick="changePeriod(-1)" aria-label="Önceki Ay"><i class="ph-bold ph-caret-left"></i></button>
-          <span class="p-label" id="currentPeriodLabel" onclick="resetToCurrentMonth()">Kasım 2026</span>
-          <button class="p-nav" onclick="changePeriod(1)" aria-label="Sonraki Ay"><i class="ph-bold ph-caret-right"></i></button>
+          <button class="p-nav" onclick="changePeriod(-1)" aria-label="Önceki Ay" title="Önceki Ay"><i class="ph-bold ph-caret-left"></i></button>
+          <span class="p-label" id="currentPeriodLabel" onclick="openPeriodPickerModal()" title="Ay ve Yıl Takvimini Açmak İçin Dokunun">Kasım 2026</span>
+          <button class="p-nav" onclick="changePeriod(1)" aria-label="Sonraki Ay" title="Sonraki Ay"><i class="ph-bold ph-caret-right"></i></button>
         </div>
       </div>
     </header>
@@ -736,7 +736,7 @@
 
             <div id="inAppUpdateStatusBox" class="compact-row" style="margin-bottom:10px;">
               <div>
-                <strong style="font-size:0.84rem; display:block;" id="updateCheckTitle">Güncel Sürüm Kullanılıyor (v1.2.7)</strong>
+                <strong style="font-size:0.84rem; display:block;" id="updateCheckTitle">Güncel Sürüm Kullanılıyor (v1.2.8)</strong>
                 <span style="font-size:0.73rem; color:var(--text-muted);" id="updateCheckDesc">Son denetim: Bugün • Tüm gayrimenkul ve tahsilat verileriniz güvende.</span>
               </div>
               <button type="button" class="btn-primary-sm" onclick="checkAndApplyInAppUpdate()">
@@ -1643,6 +1643,44 @@
               <i class="ph-bold ph-note-pencil"></i> Sadece Kira Tahakkuklarını Güncelle
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 12: DÖNEM (AY & YIL) SEÇİCİ TAKVİM ==================== -->
+  <div class="modal-backdrop no-print" id="periodPickerModal">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <h3>📅 Dönem (Ay & Yıl) Seçici Takvim</h3>
+        <button class="modal-close" onclick="closeModal('periodPickerModal')"><i class="ph-bold ph-x"></i></button>
+      </div>
+      <div class="modal-body">
+        <!-- Year Switcher Bar -->
+        <div class="picker-year-header">
+          <button type="button" class="picker-yr-nav" onclick="shiftPickerYear(-1)">
+            <i class="ph-bold ph-caret-left"></i> Önceki Yıl
+          </button>
+          <strong class="picker-yr-title" id="pickerSelectedYearLabel">2026</strong>
+          <button type="button" class="picker-yr-nav" onclick="shiftPickerYear(1)">
+            Sonraki Yıl <i class="ph-bold ph-caret-right"></i>
+          </button>
+        </div>
+
+        <!-- Quick Year Pills (2019..2027) -->
+        <div class="picker-quick-years" id="pickerQuickYearsRow"></div>
+
+        <!-- 12 Months 3x4 Calendar Grid -->
+        <div class="picker-months-grid" id="pickerMonthsGrid"></div>
+
+        <!-- Footer Actions -->
+        <div class="form-row-2" style="margin-top:12px;">
+          <button type="button" class="btn-primary-full" onclick="selectCurrentMonthFromPicker()">
+            <i class="ph-bold ph-calendar-check"></i> Bugüne (Güncel Aya) Dön
+          </button>
+          <button type="button" class="btn-outline-full" onclick="closeModal('periodPickerModal'); openHistoricalRentsModal();">
+            <i class="ph-bold ph-clock-counter-clockwise"></i> Geçmiş Yıl Kiralarını Düzenle
+          </button>
         </div>
       </div>
     </div>
