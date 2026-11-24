@@ -6,7 +6,7 @@
 const STORAGE_KEY = 'rentora_enterprise_v2';
 const MEMBERS_REGISTRY_KEY = 'rentora_members_registry_v1';
 const ACTIVE_SESSION_KEY = 'rentora_active_member_session_v1';
-const CURRENT_APP_VERSION = '1.2.6';
+const CURRENT_APP_VERSION = '1.2.7';
 const AUTH_GATE_STORAGE_KEY = 'rentora_device_auth_token_v1';
 const AUTH_EXPECTED_SHA256 = '7a29b5e673caa030731ebf304028832c0d4617404f395950cb64a2f80dbc0ae6';
 const LEGACY_KEYS = ['rentora_enterprise_v1', 'avigen_kira_takip_v1'];
@@ -1355,6 +1355,13 @@ function changePeriod(delta) {
   renderAll();
 }
 
+function changePeriodYear(deltaYear) {
+  activeYear += deltaYear;
+  updatePeriodHeader();
+  renderAll();
+  showToast(`${activeYear} yılı kira tablosuna geçildi`);
+}
+
 function resetToCurrentMonth() {
   const t = new Date();
   activeYear = t.getFullYear();
@@ -1405,7 +1412,13 @@ function getPropertyPeriodStatus(prop, periodKey = getPeriodKey()) {
     };
   }
 
-  const expected = rec && rec.expectedAmount !== undefined ? Number(rec.expectedAmount) : Number(prop.rentAmount || 0);
+  const pYearStr = String(periodKey || '').slice(0, 4);
+  const yearDefaultRent = (prop.yearlyRents && Number(prop.yearlyRents[pYearStr]) > 0)
+    ? Number(prop.yearlyRents[pYearStr])
+    : Number(prop.rentAmount || 0);
+  const expected = (rec && rec.expectedAmount !== undefined && Number(rec.expectedAmount) > 0)
+    ? Number(rec.expectedAmount)
+    : yearDefaultRent;
   const paid = rec ? Number(rec.paidAmount || 0) : 0;
   const remaining = Math.max(0, expected - paid);
   const dueDay = Number(prop.dueDay || 5);
@@ -1910,6 +1923,14 @@ function openPropertyQuickActionSheet(propId, periodKey = getPeriodKey()) {
         </div>
       </button>
 
+      <button class="qhub-btn blue" onclick="closeModal('detailModal'); openHistoricalRentsModal('${prop.id}')">
+        <i class="ph-bold ph-clock-counter-clockwise"></i>
+        <div>
+          <strong>📅 Geçmiş Yıllar Kira Tutarlarını & Ödemelerini Düzenle</strong>
+          <span>Eski yıllardaki (2018-2026) farklı kira bedellerini ve tahsilatları gir</span>
+        </div>
+      </button>
+
       ${isRented ? `
         <button class="qhub-btn whatsapp" onclick="sendReminderWhatsApp('${prop.id}', '${periodKey}')">
           <i class="ph-fill ph-whatsapp-logo"></i>
@@ -2241,11 +2262,11 @@ function renderPropertiesView() {
           <button class="btn-card receipt" onclick="openPropertyModal('${prop.id}')">
             <i class="ph-bold ph-pencil-simple"></i> Mülk Düzenle
           </button>
+          <button class="btn-card" onclick="openHistoricalRentsModal('${prop.id}')">
+            <i class="ph-bold ph-clock-counter-clockwise"></i> Geçmiş Yıl Kiraları
+          </button>
           <button class="btn-card" onclick="openPropertyDetailModal('${prop.id}')">
             <i class="ph-bold ph-calendar-check"></i> 12 Ay Karne
-          </button>
-          <button class="btn-card" onclick="quickOpenLegalDoc('${prop.type === 'Dükkan' || prop.type === 'Ofis' || prop.type === 'İş Yeri' ? 'isyeri_sozlesme' : 'konut_sozlesme'}', '${prop.id}')">
-            <i class="ph-bold ph-file-text"></i> Sözleşme
           </button>
         </div>
       </div>
@@ -3801,6 +3822,7 @@ function savePropertyForm(e) {
     contractStart: status === 'rented' ? cStart : '',
     contractEnd: status === 'rented' ? cEnd : '',
     depositAmount: status === 'rented' ? depAmount : 0,
+    yearlyRents: existing?.yearlyRents || {},
     maintenanceLogs: existing?.maintenanceLogs || []
   };
 
@@ -3812,6 +3834,257 @@ function savePropertyForm(e) {
   closeModal('propertyModal');
   renderAll();
   showToast('Gayrimenkul kaydedildi ✅');
+}
+
+// ==================== HISTORICAL YEARS RENT & COLLECTION SCHEDULE MANAGER ====================
+
+function openHistoricalRentsModalFromPropModal() {
+  const curId = document.getElementById('propId')?.value;
+  if (!curId) {
+    alert('Lütfen önce gayrimenkulü kaydedin, ardından geçmiş yıllar kira cetvelini düzenleyin.');
+    return;
+  }
+  closeModal('propertyModal');
+  openHistoricalRentsModal(curId);
+}
+
+function openHistoricalRentsModal(preselectedPropId = null) {
+  if (!state.properties || state.properties.length === 0) {
+    showToast('Önce bir gayrimenkul ekleyin');
+    openPropertyModal();
+    return;
+  }
+  const sel = document.getElementById('histRentPropertySelect');
+  if (!sel) return;
+  const targetId = preselectedPropId || sel.value || state.properties[0].id;
+  sel.innerHTML = state.properties.map(p =>
+    `<option value="${p.id}" ${p.id === targetId ? 'selected' : ''}>${escapeHtml(p.name)} — Güncel Kira: ${formatCurrency(p.rentAmount)}</option>`
+  ).join('');
+  renderHistoricalRentsModalBody();
+  openModal('historicalRentsModal');
+}
+
+function renderHistoricalRentsModalBody() {
+  const propId = document.getElementById('histRentPropertySelect')?.value;
+  const prop = state.properties.find(p => p.id === propId) || state.properties[0];
+  const box = document.getElementById('histRentYearsTableContainer');
+  if (!prop || !box) return;
+
+  prop.yearlyRents = prop.yearlyRents || {};
+  const curYr = new Date().getFullYear();
+  const pYearFromAcq = Number(String(prop.purchaseDate || '').slice(0, 4)) || 2020;
+  const startYr = Math.min(2020, Math.max(2015, pYearFromAcq));
+  const years = [];
+  for (let y = curYr; y >= startYr; y--) {
+    years.push(y);
+  }
+
+  box.innerHTML = years.map(yr => {
+    let paidMonthsInYr = 0;
+    let detectedRent = Number(prop.yearlyRents[yr] || 0);
+    let totalGoldGrInYr = 0;
+    let totalUsdInYr = 0;
+
+    for (let m = 1; m <= 12; m++) {
+      const pKey = `${yr}-${String(m).padStart(2, '0')}`;
+      const rec = state.payments[`${prop.id}_${pKey}`];
+      if (rec) {
+        if (!detectedRent && Number(rec.expectedAmount) > 0) {
+          detectedRent = Number(rec.expectedAmount);
+        }
+        if (Number(rec.paidAmount) > 0 && rec.status !== 'cancelled') {
+          paidMonthsInYr++;
+          const dueDayStr = String(prop.dueDay || 5).padStart(2, '0');
+          const refDate = rec.date || `${pKey}-${dueDayStr}`;
+          const fx = (rec.customFx && rec.fxRates) ? rec.fxRates : getHistoricalFxRates(refDate);
+          totalGoldGrInYr += Number(rec.paidAmount) / Math.max(0.01, fx.XAU || 3000);
+          totalUsdInYr += Number(rec.paidAmount) / Math.max(0.01, fx.USD || 34.5);
+        }
+      }
+    }
+
+    if (!detectedRent && yr === curYr) {
+      detectedRent = Number(prop.rentAmount || 0);
+    }
+
+    const sampleRates = getHistoricalFxRates(`${yr}-06-15`);
+    const statusBadge = paidMonthsInYr > 0
+      ? `<span class="status-pill pill-paid" style="font-size:0.65rem;">✓ ${paidMonthsInYr}/12 Ay Ödendi (${totalGoldGrInYr.toFixed(1)} Gr Altın • ${Math.round(totalUsdInYr)} $)</span>`
+      : (detectedRent > 0
+          ? `<span class="status-pill pill-pending" style="font-size:0.65rem;">Tahakkuk: ${formatCurrency(detectedRent)}/ay</span>`
+          : `<span class="status-pill pill-vacant" style="font-size:0.65rem;">Kayıt Yok (Ort. Altın: ~${sampleRates.XAU}₺/gr)</span>`);
+
+    return `
+      <div class="compact-row" style="flex-wrap:wrap; gap:8px; padding:9px 11px;">
+        <div style="min-width:170px; flex:1;">
+          <strong style="font-size:0.86rem; display:block;">🗓️ ${yr} Yılı Aylık Kira Bedeli</strong>
+          <div style="margin-top:3px;">${statusBadge}</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+          <input type="number" id="histYrInput_${yr}" class="form-control" style="width:130px; height:34px; font-weight:800;" min="0" step="100" value="${detectedRent > 0 ? detectedRent : ''}" placeholder="${yr} Aylık ₺" />
+          <button type="button" class="btn-primary-sm" style="height:34px; background:#00a878 !important;" onclick="applyHistoricalYearRent(${yr}, true)" title="${yr} yılının 12 ayını bu kira bedeliyle ÖDENDİ olarak kaydet ve o yılın altın/dolar kurundan amortismana ekle">
+            <i class="ph-bold ph-check"></i> Yılı Ödendi Kaydet
+          </button>
+          <button type="button" class="btn-outline-sm" style="height:34px;" onclick="applyHistoricalYearRent(${yr}, false)" title="Sadece ${yr} yılının aylık kira tahakkukunu güncelle">
+            Tahakkuk Güncelle
+          </button>
+          ${paidMonthsInYr > 0 ? `
+            <button type="button" class="btn-danger-sm" style="height:34px; padding:0 8px;" onclick="clearHistoricalYearRent(${yr})" title="${yr} yılı kayıtlarını sıfırla">
+              <i class="ph-bold ph-trash"></i>
+            </button>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function applyHistoricalYearRent(yr, markAllPaid = true) {
+  if (!checkLicenseWritePermission(false)) return;
+  const propId = document.getElementById('histRentPropertySelect')?.value;
+  const prop = state.properties.find(p => p.id === propId);
+  if (!prop) return;
+
+  const rentVal = Number(document.getElementById(`histYrInput_${yr}`)?.value || 0);
+  if (rentVal <= 0) {
+    alert(`Lütfen ${yr} yılı için aylık kira tutarını (₺) girin.`);
+    document.getElementById(`histYrInput_${yr}`)?.focus();
+    return;
+  }
+
+  prop.yearlyRents = prop.yearlyRents || {};
+  prop.yearlyRents[String(yr)] = rentVal;
+  if (yr === new Date().getFullYear()) {
+    prop.rentAmount = rentVal;
+  }
+
+  const dueDayStr = String(prop.dueDay || 5).padStart(2, '0');
+  const nowD = new Date();
+  const curY = nowD.getFullYear();
+  const curM = nowD.getMonth() + 1;
+
+  for (let m = 1; m <= 12; m++) {
+    // If current year and marking paid, only mark months up to current month as paid
+    const isFutureMonthInCurrentYear = (yr === curY && m > curM);
+    const pKey = `${yr}-${String(m).padStart(2, '0')}`;
+    const accrualDate = `${pKey}-${dueDayStr}`;
+    const fxRates = getHistoricalFxRates(accrualDate);
+    const existing = state.payments[`${prop.id}_${pKey}`];
+
+    if (markAllPaid && !isFutureMonthInCurrentYear) {
+      state.payments[`${prop.id}_${pKey}`] = {
+        paidAmount: rentVal,
+        expectedAmount: rentVal,
+        date: accrualDate,
+        dateExplicit: true,
+        fxRates,
+        method: existing?.method || 'Banka Havale/EFT',
+        note: existing?.note || `${yr} yılı geçmiş dönem kira tahsilatı`,
+        tenantId: prop.tenantId
+      };
+    } else {
+      const currentPaid = existing ? Number(existing.paidAmount || 0) : 0;
+      state.payments[`${prop.id}_${pKey}`] = {
+        ...(existing || {}),
+        paidAmount: currentPaid > 0 ? rentVal : 0,
+        expectedAmount: rentVal,
+        date: existing?.date || (currentPaid > 0 ? accrualDate : ''),
+        fxRates: existing?.fxRates || fxRates,
+        tenantId: prop.tenantId
+      };
+    }
+  }
+
+  saveState();
+  renderHistoricalRentsModalBody();
+  renderAll();
+  showToast(markAllPaid
+    ? `✅ ${yr} yılı kiraları (${formatCurrency(rentVal)}/ay) ödendi olarak kaydedildi ve ${yr} altın/dolar kurundan amortismana eklendi!`
+    : `📝 ${yr} yılı aylık kira tahakkuku ${formatCurrency(rentVal)} olarak güncellendi!`);
+}
+
+function clearHistoricalYearRent(yr) {
+  const propId = document.getElementById('histRentPropertySelect')?.value;
+  const prop = state.properties.find(p => p.id === propId);
+  if (!prop) return;
+  if (!confirm(`${prop.name} taşınmazının ${yr} yılına ait tüm kira ve ödeme kayıtlarını sıfırlamak istiyor musunuz?`)) return;
+
+  if (prop.yearlyRents) delete prop.yearlyRents[String(yr)];
+  for (let m = 1; m <= 12; m++) {
+    const pKey = `${yr}-${String(m).padStart(2, '0')}`;
+    delete state.payments[`${prop.id}_${pKey}`];
+  }
+  saveState();
+  renderHistoricalRentsModalBody();
+  renderAll();
+  showToast(`🗑️ ${yr} yılı kira kayıtları sıfırlandı`);
+}
+
+function applyHistoricalCustomRange(markAsPaid = true) {
+  if (!checkLicenseWritePermission(false)) return;
+  const propId = document.getElementById('histRentPropertySelect')?.value;
+  const prop = state.properties.find(p => p.id === propId);
+  if (!prop) return;
+
+  const startYm = document.getElementById('histRangeStartMonth')?.value || '';
+  const endYm = document.getElementById('histRangeEndMonth')?.value || '';
+  const rentVal = Number(document.getElementById('histRangeRentAmount')?.value || 0);
+
+  if (!startYm || !endYm || startYm > endYm) {
+    alert('Lütfen geçerli bir Başlangıç ve Bitiş Ayı seçin (Başlangıç ayı, bitiş ayından küçük veya eşit olmalıdır).');
+    return;
+  }
+  if (rentVal <= 0) {
+    alert('Lütfen bu dönem aralığı için aylık kira bedelini (₺) girin.');
+    document.getElementById('histRangeRentAmount')?.focus();
+    return;
+  }
+
+  let [y, m] = startYm.split('-').map(Number);
+  const [endY, endM] = endYm.split('-').map(Number);
+  const dueDayStr = String(prop.dueDay || 5).padStart(2, '0');
+  let count = 0;
+
+  while ((y < endY || (y === endY && m <= endM)) && count < 120) {
+    count++;
+    const pKey = `${y}-${String(m).padStart(2, '0')}`;
+    const accrualDate = `${pKey}-${dueDayStr}`;
+    const fxRates = getHistoricalFxRates(accrualDate);
+    const existing = state.payments[`${prop.id}_${pKey}`];
+
+    if (markAsPaid) {
+      state.payments[`${prop.id}_${pKey}`] = {
+        paidAmount: rentVal,
+        expectedAmount: rentVal,
+        date: accrualDate,
+        dateExplicit: true,
+        fxRates,
+        method: existing?.method || 'Banka Havale/EFT',
+        note: `${startYm} / ${endYm} dönemi kira tahsilatı`,
+        tenantId: prop.tenantId
+      };
+    } else {
+      const curPaid = existing ? Number(existing.paidAmount || 0) : 0;
+      state.payments[`${prop.id}_${pKey}`] = {
+        ...(existing || {}),
+        paidAmount: curPaid > 0 ? rentVal : 0,
+        expectedAmount: rentVal,
+        date: existing?.date || '',
+        fxRates: existing?.fxRates || fxRates,
+        tenantId: prop.tenantId
+      };
+    }
+
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+
+  saveState();
+  renderHistoricalRentsModalBody();
+  renderAll();
+  showToast(markAsPaid
+    ? `✅ ${startYm} – ${endYm} arası (${count} Ay) ${formatCurrency(rentVal)}/ay olarak ödendi kaydedildi!`
+    : `📝 ${startYm} – ${endYm} arası (${count} Ay) kira tahakkuku ${formatCurrency(rentVal)}/ay olarak güncellendi!`);
 }
 
 function openTenantModal(tenId = null) {
