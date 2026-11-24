@@ -237,27 +237,49 @@
           </div>
         </div>
 
-        <!-- 2. Ergonomic 3-Button Horizontal KPI & Filter Bar (No Redundant 4th Box) -->
-        <div class="kpi-strip ergonomic-3-kpi" id="homeKpiFilterStrip">
-          <button type="button" class="kpi-pill active-kpi" data-hfilter="all" onclick="setHomeFilter('all')">
-            <span class="kpi-icon-dot dot-navy"><i class="ph-fill ph-buildings"></i></span>
-            <div class="kpi-meta">
-              <span class="kpi-txt">Tüm Mülkler</span>
-              <strong class="kpi-num" id="kpiTotalProps">0</strong>
+        <!-- 2. Professional 4-Square Executive KPI & Filter Grid -->
+        <div class="kpi-strip exec-4-squares" id="homeKpiFilterStrip">
+          <button type="button" class="kpi-square-card sq-navy active-kpi" data-hfilter="all" onclick="setHomeFilter('all')">
+            <div class="ksq-top">
+              <span class="ksq-icon"><i class="ph-fill ph-buildings"></i></span>
+              <strong class="ksq-num" id="kpiTotalProps">0</strong>
+            </div>
+            <div class="ksq-bottom">
+              <span class="ksq-title">Tüm Mülkler</span>
+              <small class="ksq-sub" id="kpiSubOccupancy">Portföy</small>
             </div>
           </button>
-          <button type="button" class="kpi-pill" data-hfilter="paid" onclick="setHomeFilter('paid')">
-            <span class="kpi-icon-dot dot-emerald"><i class="ph-fill ph-check-circle"></i></span>
-            <div class="kpi-meta">
-              <span class="kpi-txt">Ödeyen</span>
-              <strong class="kpi-num text-success" id="kpiPaidCount">0</strong>
+
+          <button type="button" class="kpi-square-card sq-emerald" data-hfilter="paid" onclick="setHomeFilter('paid')">
+            <div class="ksq-top">
+              <span class="ksq-icon"><i class="ph-fill ph-check-circle"></i></span>
+              <strong class="ksq-num" id="kpiPaidCount">0</strong>
+            </div>
+            <div class="ksq-bottom">
+              <span class="ksq-title">Kira Ödeyen</span>
+              <small class="ksq-sub" id="kpiSubPaidPct">Tahsil Tamam</small>
             </div>
           </button>
-          <button type="button" class="kpi-pill" data-hfilter="overdue" onclick="setHomeFilter('overdue')">
-            <span class="kpi-icon-dot dot-rose"><i class="ph-fill ph-clock-countdown"></i></span>
-            <div class="kpi-meta">
-              <span class="kpi-txt">Bekleyen / Geciken</span>
-              <strong class="kpi-num text-danger" id="kpiOverdueCount">0</strong>
+
+          <button type="button" class="kpi-square-card sq-rose" data-hfilter="overdue" onclick="setHomeFilter('overdue')">
+            <div class="ksq-top">
+              <span class="ksq-icon"><i class="ph-fill ph-clock-countdown"></i></span>
+              <strong class="ksq-num" id="kpiOverdueCount">0</strong>
+            </div>
+            <div class="ksq-bottom">
+              <span class="ksq-title">Bekleyen / Geciken</span>
+              <small class="ksq-sub" id="kpiSubOverdueAmt">Takip Listesi</small>
+            </div>
+          </button>
+
+          <button type="button" class="kpi-square-card sq-amber" data-hfilter="alerts" onclick="setHomeFilter('alerts')">
+            <div class="ksq-top">
+              <span class="ksq-icon"><i class="ph-fill ph-bell-ringing"></i></span>
+              <strong class="ksq-num" id="kpiAlertsCount">0</strong>
+            </div>
+            <div class="ksq-bottom">
+              <span class="ksq-title">Boş & Zam Dönemi</span>
+              <small class="ksq-sub" id="kpiSubAlertsDesc">Boş / Sözleşme</small>
             </div>
           </button>
         </div>
@@ -275,8 +297,11 @@
 
           <div class="home-mini-chart-card" onclick="switchTab('reports'); selectReportCard('breakeven_roi')">
             <div class="hmc-head">
-              <span class="hmc-title"><i class="ph-fill ph-scales"></i> Başa Baş & Amortisman</span>
-              <span class="hmc-badge roi" id="homeRoiChartBadge">Raporu Aç</span>
+              <span class="hmc-title"><i class="ph-fill ph-scales"></i> Amortisman (Geri Dönüş)</span>
+              <div class="amort-unit-toggle" onclick="event.stopPropagation()">
+                <button type="button" class="aut-btn active" data-aunit="XAU" onclick="setAmortizationUnit('XAU')">🪙 Altın</button>
+                <button type="button" class="aut-btn" data-aunit="USD" onclick="setAmortizationUnit('USD')">💵 Dolar</button>
+              </div>
             </div>
             <div id="homeBreakevenRoiChart" class="hmc-body"></div>
           </div>
@@ -702,7 +727,7 @@
 
             <div id="inAppUpdateStatusBox" class="compact-row" style="margin-bottom:10px;">
               <div>
-                <strong style="font-size:0.84rem; display:block;" id="updateCheckTitle">Güncel Sürüm Kullanılıyor (v1.2.5)</strong>
+                <strong style="font-size:0.84rem; display:block;" id="updateCheckTitle">Güncel Sürüm Kullanılıyor (v1.2.6)</strong>
                 <span style="font-size:0.73rem; color:var(--text-muted);" id="updateCheckDesc">Son denetim: Bugün • Tüm gayrimenkul ve tahsilat verileriniz güvende.</span>
               </div>
               <button type="button" class="btn-primary-sm" onclick="checkAndApplyInAppUpdate()">
@@ -1062,26 +1087,22 @@
           </div>
         </div>
 
-        <div class="form-section-title">3. Edinim Maliyeti (Başa Baş / Amortisman Hesabı İçin)</div>
-        <div class="form-row-3">
+        <div class="form-section-title">3. Edinim / Alış Maliyeti (Sadece TL Girin — Altın ve Dolar Otomatik Hesaplanır)</div>
+        <div class="form-row-2">
           <div class="form-group">
             <label>Edinim (Alış) Tarihi</label>
-            <input type="date" id="propPurchaseDate" class="form-control" />
+            <input type="date" id="propPurchaseDate" class="form-control" onchange="updatePropertyAcquisitionAutoPreview()" />
           </div>
           <div class="form-group">
-            <label>Edinim Maliyeti Para Birimi</label>
-            <select id="propPurchaseCurrency" class="form-control">
-              <option value="USD">💵 USD (Amerikan Doları)</option>
-              <option value="EUR">💶 EUR (Euro)</option>
-              <option value="XAU">🪙 Altın (Gram)</option>
-              <option value="TRY">₺ TRY (Türk Lirası)</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Edinim Maliyeti (Seçili Birim Tutarı)</label>
-            <input type="number" step="0.01" id="propPurchaseCostInCurrency" class="form-control" placeholder="Örn: 120000 USD veya 2500 Gr Altın" />
+            <label>Alış / Maliyet Bedeli (TL - ₺)</label>
+            <input type="number" step="1000" min="0" id="propPurchasePrice" class="form-control" placeholder="Örn: 3250000" oninput="updatePropertyAcquisitionAutoPreview()" />
           </div>
         </div>
+        <div id="propAcquisitionAutoPreview" style="font-size:0.75rem; font-weight:700; color:#008f65; background:rgba(0,168,120,0.08); border:1px solid rgba(0,168,120,0.22); border-radius:9px; padding:8px 11px; margin-top:-2px; margin-bottom:4px;">
+          🪙 Alış tarihi ve TL maliyet girdiğinizde o günkü Gram Altın ve Dolar karşılığı otomatik hesaplanır.
+        </div>
+        <input type="hidden" id="propPurchaseCurrency" value="TRY" />
+        <input type="hidden" id="propPurchaseCostInCurrency" value="0" />
 
         <div class="form-section-title">4. Adres, Cadde/Sokak, m², Oda & Tapu Detayları</div>
         <div class="form-row-3">
@@ -1168,7 +1189,6 @@
 
         <!-- Hidden secondary fields preserved for full compatibility -->
         <input type="hidden" id="propM2" value="" />
-        <input type="hidden" id="propPurchasePrice" value="0" />
         <input type="hidden" id="propFixtures" value="" />
         <input type="hidden" id="propPhotoUrl" value="" />
 
