@@ -3828,5 +3828,166 @@ html, body {
   }
 }
 
+/* ==========================================================================
+   RENTORA V11 — 4-SQUARE EXECUTIVE KPI GRID & GOLD / USD AMORTIZATION TOGGLE
+   ========================================================================== */
+
+.kpi-strip.exec-4-squares {
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 8px !important;
+  margin-bottom: 10px !important;
+}
+
+@media (max-width: 540px) {
+  .kpi-strip.exec-4-squares {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 7px !important;
+  }
+}
+
+.kpi-square-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--bg-surface);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.035);
+  cursor: pointer;
+  text-align: left;
+  overflow: hidden;
+  transition: transform 0.12s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.kpi-square-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3.5px;
+  background: #0f172a;
+}
+
+.kpi-square-card.sq-navy::before    { background: linear-gradient(90deg, #0f172a, #1e3a8a); }
+.kpi-square-card.sq-emerald::before { background: linear-gradient(90deg, #059669, #10b981); }
+.kpi-square-card.sq-rose::before    { background: linear-gradient(90deg, #e11d48, #f43f5e); }
+.kpi-square-card.sq-amber::before   { background: linear-gradient(90deg, #d97706, #f59e0b); }
+
+.kpi-square-card.active-kpi {
+  border: 1.5px solid #00a878 !important;
+  background: linear-gradient(180deg, #ffffff 0%, rgba(0, 168, 120, 0.07) 100%) !important;
+  box-shadow: 0 6px 16px rgba(0, 168, 120, 0.14) !important;
+}
+
+:root[data-theme="dark"] .kpi-square-card.active-kpi {
+  background: linear-gradient(180deg, #1e293b 0%, rgba(0, 168, 120, 0.16) 100%) !important;
+}
+
+.ksq-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.ksq-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.sq-navy .ksq-icon    { background: rgba(15, 23, 42, 0.08); color: #0f172a; }
+.sq-emerald .ksq-icon { background: rgba(16, 185, 129, 0.13); color: #059669; }
+.sq-rose .ksq-icon    { background: rgba(244, 63, 94, 0.12); color: #e11d48; }
+.sq-amber .ksq-icon   { background: rgba(245, 158, 11, 0.14); color: #d97706; }
+
+:root[data-theme="dark"] .sq-navy .ksq-icon {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+}
+
+.ksq-num {
+  font-size: 1.12rem;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -0.3px;
+}
+
+.sq-emerald .ksq-num { color: #059669; }
+.sq-rose .ksq-num    { color: #e11d48; }
+.sq-amber .ksq-num   { color: #b45309; }
+
+:root[data-theme="dark"] .sq-amber .ksq-num { color: #fbbf24; }
+
+.ksq-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.ksq-title {
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ksq-sub {
+  font-size: 0.64rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Gold (XAU) vs Dollar (USD) Pill Switcher */
+.amort-unit-toggle {
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: 99px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.aut-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.64rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 99px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.aut-btn.active {
+  background: #0f172a;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.22);
+}
+
+:root[data-theme="dark"] .aut-btn.active {
+  background: #00a878;
+  color: #ffffff;
+}
+
+
 
 
