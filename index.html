@@ -310,8 +310,9 @@
         <!-- 4. SINGLE-SCREEN PROPERTY LIST WITH INSTANT FILTER & ONE-TAP ACTIONS -->
         <div class="cockpit-grid-header">
           <span class="cgh-title" id="homeListHeaderTitle"><i class="ph-fill ph-buildings"></i> Gayrimenkullerim & Bu Ayki Durum</span>
-          <div style="display:flex; gap:6px;">
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
             <button class="cgh-link primary-pill" onclick="openPropertyModal()"><i class="ph-bold ph-plus"></i> Mülk Ekle</button>
+            <button class="cgh-link" onclick="openHistoricalRentsModal()"><i class="ph-bold ph-clock-counter-clockwise"></i> Geçmiş Yıl Kiraları</button>
             <button class="cgh-link" onclick="openQuickCollectSelector()"><i class="ph-bold ph-hand-coins"></i> Hızlı Tahsilat</button>
           </div>
         </div>
@@ -408,7 +409,10 @@
             <h2 class="section-title">Kira Tahsilat & 12 Aylık Takip</h2>
             <p class="section-sub" id="collectionsSubTitle">Kim ödedi, kim gecikti, kısmi ödeme ve toplu tahsilat</p>
           </div>
-          <div style="display:flex; gap:6px;">
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button class="btn-outline-sm" onclick="openHistoricalRentsModal()">
+              <i class="ph-bold ph-clock-counter-clockwise"></i> Geçmiş Yıllar Kira Cetveli
+            </button>
             <button class="btn-outline-sm" onclick="openBulkPaymentModal()">
               <i class="ph-bold ph-stack"></i> Toplu Tahsilat
             </button>
@@ -435,13 +439,18 @@
 
         <!-- FANCY 10-PROPERTY x 12-MONTH YEARLY MATRIX TABLE -->
         <div class="panel-card">
-          <div class="panel-card-header">
+          <div class="panel-card-header" style="flex-wrap:wrap; gap:8px;">
             <div style="display:flex; align-items:center; gap:10px;">
               <div class="panel-icon bg-indigo"><i class="ph-fill ph-calendar-check"></i></div>
               <div>
                 <h3>Yıllık Kira Takip Çizelgesi (<span id="matrixYearTitle">2026</span> — Tüm Mülkler × 12 Ay)</h3>
-                <p>Hangi mülk hangi ay ödedi tek bakışta görün; kutucuğa dokunarak tahsilat girin</p>
+                <p>Hangi mülk hangi ay ödedi tek bakışta görün; kutucuğa dokunarak o ayın kira ve tahsilatını düzenleyin</p>
               </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <button type="button" class="btn-outline-sm" onclick="changePeriodYear(-1)"><i class="ph-bold ph-caret-left"></i> Önceki Yıl</button>
+              <button type="button" class="btn-outline-sm" onclick="changePeriodYear(1)">Sonraki Yıl <i class="ph-bold ph-caret-right"></i></button>
+              <button type="button" class="btn-primary-sm" onclick="openHistoricalRentsModal()"><i class="ph-bold ph-clock-counter-clockwise"></i> Geçmiş Yıl Kiraları</button>
             </div>
           </div>
           <div id="yearlyRentMatrixBoard" class="yearly-matrix-scroll"></div>
@@ -727,7 +736,7 @@
 
             <div id="inAppUpdateStatusBox" class="compact-row" style="margin-bottom:10px;">
               <div>
-                <strong style="font-size:0.84rem; display:block;" id="updateCheckTitle">Güncel Sürüm Kullanılıyor (v1.2.6)</strong>
+                <strong style="font-size:0.84rem; display:block;" id="updateCheckTitle">Güncel Sürüm Kullanılıyor (v1.2.7)</strong>
                 <span style="font-size:0.73rem; color:var(--text-muted);" id="updateCheckDesc">Son denetim: Bugün • Tüm gayrimenkul ve tahsilat verileriniz güvende.</span>
               </div>
               <button type="button" class="btn-primary-sm" onclick="checkAndApplyInAppUpdate()">
@@ -1098,9 +1107,12 @@
             <input type="number" step="1000" min="0" id="propPurchasePrice" class="form-control" placeholder="Örn: 3250000" oninput="updatePropertyAcquisitionAutoPreview()" />
           </div>
         </div>
-        <div id="propAcquisitionAutoPreview" style="font-size:0.75rem; font-weight:700; color:#008f65; background:rgba(0,168,120,0.08); border:1px solid rgba(0,168,120,0.22); border-radius:9px; padding:8px 11px; margin-top:-2px; margin-bottom:4px;">
+        <div id="propAcquisitionAutoPreview" style="font-size:0.75rem; font-weight:700; color:#008f65; background:rgba(0,168,120,0.08); border:1px solid rgba(0,168,120,0.22); border-radius:9px; padding:8px 11px; margin-top:-2px; margin-bottom:6px;">
           🪙 Alış tarihi ve TL maliyet girdiğinizde o günkü Gram Altın ve Dolar karşılığı otomatik hesaplanır.
         </div>
+        <button type="button" class="btn-outline-full" style="margin-bottom:6px; border-style:dashed;" onclick="openHistoricalRentsModalFromPropModal()">
+          <i class="ph-bold ph-clock-counter-clockwise"></i> 📅 Bu Mülkün Geçmiş Yıllardaki (Eski) Kira Tutarlarını & Ödemelerini Düzenle
+        </button>
         <input type="hidden" id="propPurchaseCurrency" value="TRY" />
         <input type="hidden" id="propPurchaseCostInCurrency" value="0" />
 
@@ -1574,6 +1586,63 @@
           <button type="button" class="btn-primary-full" onclick="restoreFromWhatsAppBackupText()">
             <i class="ph-bold ph-check-circle"></i> Yedeği Şimdi Geri Yükle
           </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 11: GEÇMİŞ YILLAR KİRA BEDELLERİ & TAHSİLAT CETVELİ ==================== -->
+  <div class="modal-backdrop no-print" id="historicalRentsModal">
+    <div class="modal-sheet modal-sheet-lg">
+      <div class="modal-header">
+        <h3>📅 Geçmiş Yıllar Kira Tutarları & Tahsilat Cetveli</h3>
+        <button class="modal-close" onclick="closeModal('historicalRentsModal')"><i class="ph-bold ph-x"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group" style="margin-bottom:10px;">
+          <label>Gayrimenkul Seçin</label>
+          <select id="histRentPropertySelect" class="form-control" onchange="renderHistoricalRentsModalBody()"></select>
+        </div>
+
+        <div class="panel-card" style="margin-bottom:12px; padding:12px 14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+            <div>
+              <strong style="font-size:0.86rem; display:block;">1. Yıl Bazlı Geçmiş Kira Bedelleri (2018 – 2026)</strong>
+              <span style="font-size:0.73rem; color:var(--text-muted);">
+                Her yılın aylık kira tutarını yazıp <strong>"Yılı Ödendi Kaydet"</strong> veya <strong>"Tahakkuk Güncelle"</strong>ye dokunun. Ödenen her ay kendi tarihindeki Altın ve Dolar kuruna çevrilerek amortismana eklenir.
+              </span>
+            </div>
+          </div>
+          <div id="histRentYearsTableContainer" class="compact-list"></div>
+        </div>
+
+        <div class="panel-card" style="margin-bottom:0; padding:12px 14px; background:rgba(2,132,199,0.05); border-color:rgba(2,132,199,0.22);">
+          <strong style="font-size:0.86rem; display:block; margin-bottom:4px;">2. Özel Ay Aralığı İçin Kira Tanımla (Ara Zam / Sözleşme Dönemi İçin)</strong>
+          <p style="font-size:0.73rem; color:var(--text-muted); margin-bottom:10px;">
+            Kira artışınız yılbaşında değil de yıl ortasında (örn. Mayıs 2023 – Nisan 2024 arası) olduysa başlangıç ve bitiş ayını seçerek tek tuşla uygulayın:
+          </p>
+          <div class="form-row-3">
+            <div class="form-group">
+              <label>Başlangıç Ayı</label>
+              <input type="month" id="histRangeStartMonth" class="form-control" value="2023-01" />
+            </div>
+            <div class="form-group">
+              <label>Bitiş Ayı</label>
+              <input type="month" id="histRangeEndMonth" class="form-control" value="2023-12" />
+            </div>
+            <div class="form-group">
+              <label>O Dönem Aylık Kira (₺)</label>
+              <input type="number" id="histRangeRentAmount" class="form-control" min="1" step="100" placeholder="Örn: 12500" />
+            </div>
+          </div>
+          <div class="form-row-2" style="margin-top:8px;">
+            <button type="button" class="btn-primary-full" onclick="applyHistoricalCustomRange(true)">
+              <i class="ph-bold ph-check-circle"></i> Bu Aralığı "Ödendi" Olarak Kaydet
+            </button>
+            <button type="button" class="btn-outline-full" onclick="applyHistoricalCustomRange(false)">
+              <i class="ph-bold ph-note-pencil"></i> Sadece Kira Tahakkuklarını Güncelle
+            </button>
+          </div>
         </div>
       </div>
     </div>
