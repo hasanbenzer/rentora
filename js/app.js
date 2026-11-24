@@ -6,7 +6,7 @@
 const STORAGE_KEY = 'rentora_enterprise_v2';
 const MEMBERS_REGISTRY_KEY = 'rentora_members_registry_v1';
 const ACTIVE_SESSION_KEY = 'rentora_active_member_session_v1';
-const CURRENT_APP_VERSION = '1.2.5';
+const CURRENT_APP_VERSION = '1.2.6';
 const AUTH_GATE_STORAGE_KEY = 'rentora_device_auth_token_v1';
 const AUTH_EXPECTED_SHA256 = '7a29b5e673caa030731ebf304028832c0d4617404f395950cb64a2f80dbc0ae6';
 const LEGACY_KEYS = ['rentora_enterprise_v1', 'avigen_kira_takip_v1'];
@@ -772,24 +772,35 @@ function formatUnitCurrency(val, cur = 'TRY') {
   return Math.round(n).toLocaleString('tr-TR') + ' ₺';
 }
 
+let activeAmortUnit = 'XAU'; // 'XAU' (Gram Altın) or 'USD' (Amerikan Doları)
+
+function setAmortizationUnit(unit) {
+  activeAmortUnit = unit === 'USD' ? 'USD' : 'XAU';
+  document.querySelectorAll('.amort-unit-toggle .aut-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-aunit') === activeAmortUnit);
+  });
+  renderDashboard();
+  renderActiveReport();
+}
+
+function getPropertyPurchasePriceTL(prop) {
+  if (!prop) return 0;
+  const directTL = Number(prop.purchasePrice || 0);
+  if (directTL > 0) return directTL;
+  const pDate = prop.purchaseDate || prop.contractStart || '2021-01-01';
+  const rates = getHistoricalFxRates(pDate);
+  const legacyCur = prop.purchaseCurrency || 'USD';
+  const legacyCost = Number(prop.purchaseCostInCurrency || 0);
+  if (legacyCost > 0) {
+    return Math.round(legacyCost * (rates[legacyCur] || 1));
+  }
+  return 0;
+}
+
 function ensureCurrencyAcquisitionDefaults() {
-  const presets = [
-    { cur: 'USD', cost: 115000 }, // 1. Kadıköy Moda
-    { cur: 'USD', cost: 195000 }, // 2. Beşiktaş Dükkan
-    { cur: 'EUR', cost: 145000 }, // 3. Ataşehir Ofis
-    { cur: 'XAU', cost: 2800 },   // 4. Suadiye Daire (Gram Altın)
-    { cur: 'USD', cost: 105000 }, // 5. Bomonti Rezidans
-    { cur: 'EUR', cost: 175000 }, // 6. Bakırköy Mağaza
-    { cur: 'XAU', cost: 1900 },   // 7. Maltepe Daire (Gram Altın)
-    { cur: 'USD', cost: 135000 }, // 8. Ümraniye Depo
-    { cur: 'TRY', cost: 3400000 },// 9. Acıbadem Daire (TL)
-    { cur: 'USD', cost: 125000 }  // 10. Çengelköy Rezidans
-  ];
-  state.properties.forEach((p, idx) => {
-    if (!p.purchaseCurrency || !p.purchaseCostInCurrency) {
-      const pr = presets[idx % presets.length];
-      p.purchaseCurrency = pr.cur;
-      p.purchaseCostInCurrency = pr.cost;
+  state.properties.forEach(p => {
+    if (!p.purchasePrice || Number(p.purchasePrice) <= 0) {
+      p.purchasePrice = getPropertyPurchasePriceTL(p) || 3000000;
     }
   });
 
@@ -801,32 +812,37 @@ function ensureCurrencyAcquisitionDefaults() {
   });
 }
 
-function computePropertyBreakevenStats(prop) {
-  const cur = prop.purchaseCurrency || 'USD';
-  const acqCost = Number(prop.purchaseCostInCurrency || prop.purchasePrice || 100000);
+function computePropertyBreakevenStats(prop, unitOverride = null) {
+  const cur = unitOverride || activeAmortUnit || 'XAU';
+  const purchaseDate = prop.purchaseDate || prop.contractStart || '2021-01-01';
+  const purchasePriceTL = getPropertyPurchasePriceTL(prop);
+  const purchaseRates = getHistoricalFxRates(purchaseDate);
+  const purchaseRate = purchaseRates[cur] || 1;
+
+  // 1. Convert TL Purchase Price to Acquisition Date Gold Grams (XAU) or USD ($)
+  const acqCost = purchasePriceTL > 0 ? (purchasePriceTL / Math.max(0.0001, purchaseRate)) : 0;
+
   const currentRates = getCurrentLiveFxRates();
   const rateNow = currentRates[cur] || 1;
   const dueDayStr = String(prop.dueDay || 5).padStart(2, '0');
   const todayYm = new Date().toISOString().slice(0, 7);
 
-  // 1. Convert all recorded rent payments using their Payment Date (Ödeme Tarihi) or Accrual Date (Tahakkuk Tarihi) rate
+  // 2. Convert every recorded rent payment into Gold Grams (XAU) or USD ($) at its own Payment Date or Accrual Date
   let collectedInUnit = 0;
-  const recordedPeriods = new Set();
+  let paidMonthsCount = 0;
 
   Object.keys(state.payments || {}).forEach(k => {
     if (k.startsWith(prop.id + '_')) {
       const periodKey = k.slice(prop.id.length + 1);
       const rec = state.payments[k];
       if (rec && Number(rec.paidAmount) > 0 && rec.status !== 'cancelled') {
-        recordedPeriods.add(periodKey);
+        paidMonthsCount++;
         const accrualDate = `${periodKey}-${dueDayStr}`;
         let fx = rateNow;
 
         if (rec.customFx && rec.fxRates && Number(rec.fxRates[cur]) > 0) {
-          // User explicitly edited the exchange/gold rate in the payment modal
           fx = Number(rec.fxRates[cur]);
         } else {
-          // Determine reference date: Payment Date (rec.date) if entered for that date, or Accrual Date (tahakkuk tarihi) if older period
           let refDate = rec.date || accrualDate;
           if (!rec.dateExplicit && periodKey < todayYm && String(rec.date || '').slice(0, 7) === todayYm) {
             refDate = accrualDate;
@@ -839,67 +855,45 @@ function computePropertyBreakevenStats(prop) {
     }
   });
 
-  // 2. For older operating months since purchaseDate / contractStart (before recorded payments),
-  //    convert each historical month at its own Accrual Date (Tahakkuk Tarihi) Gold / FX rate!
   const currentMonthlyInUnit = Number(prop.rentAmount || 0) / Math.max(0.0001, rateNow);
-  const startIso = prop.purchaseDate || prop.contractStart || '';
-  if (startIso && /^\d{4}-\d{2}/.test(startIso) && Number(prop.rentAmount) > 0) {
-    const [startY, startM] = startIso.slice(0, 7).split('-').map(Number);
-    const nowD = new Date();
-    const endY = nowD.getFullYear();
-    const endM = nowD.getMonth() + 1;
-
-    let y = startY;
-    let m = startM;
-    let safety = 0;
-    while ((y < endY || (y === endY && m < endM)) && safety < 240) {
-      safety++;
-      const pKey = `${y}-${String(m).padStart(2, '0')}`;
-      if (!recordedPeriods.has(pKey)) {
-        const accrualDate = `${pKey}-${dueDayStr}`;
-        const histRates = getHistoricalFxRates(accrualDate);
-        const histFx = histRates[cur] || rateNow;
-        // Scale historical TL rent proportionally to historical XAU/USD index if from prior years, then convert at that month's accrual rate
-        const indexRatio = (histRates.USD || 34.5) / Math.max(1, currentRates.USD || 34.5);
-        const estimatedHistTlRent = (y === endY)
-          ? Number(prop.rentAmount)
-          : Number(prop.rentAmount) * Math.max(0.12, Math.min(1, indexRatio * 0.92));
-        collectedInUnit += estimatedHistTlRent / Math.max(0.0001, histFx);
-      }
-      m++;
-      if (m > 12) { m = 1; y++; }
-    }
-  }
-
-  const recoveredInUnit = Math.min(acqCost, collectedInUnit);
+  const recoveredInUnit = acqCost > 0 ? Math.min(acqCost, collectedInUnit) : collectedInUnit;
   const remainingInUnit = Math.max(0, acqCost - collectedInUnit);
-  const amortPct = acqCost > 0 ? Math.min(100, Math.round((collectedInUnit / acqCost) * 100)) : 0;
+  const rawPct = acqCost > 0 ? (collectedInUnit / acqCost) * 100 : 0;
+  const amortPct = acqCost > 0 ? Math.min(100, Number(rawPct.toFixed(1))) : 0;
 
   let remainingMonths = 0;
-  let remainingYearsText = 'Tamamlandı (Başa Baş!)';
-  let breakevenYearText = 'Amorti Etti ✅';
+  let remainingYearsText = acqCost > 0 ? 'Tamamlandı (Amorti Etti!)' : 'TL Maliyet Girilmedi';
+  let breakevenYearText = acqCost > 0 ? 'Amorti Etti ✅' : 'Maliyet Girin';
 
-  if (remainingInUnit > 0) {
+  if (acqCost > 0 && remainingInUnit > 0) {
     if (currentMonthlyInUnit > 0) {
       remainingMonths = Math.ceil(remainingInUnit / currentMonthlyInUnit);
-      const yrs = (remainingMonths / 12).toFixed(1);
-      const targetYear = activeYear + Math.ceil(remainingMonths / 12);
-      remainingYearsText = `${yrs} Yıl (${remainingMonths} Ay)`;
-      breakevenYearText = `${targetYear} (${yrs} Yıl Kaldı)`;
+      const yrs = Math.floor(remainingMonths / 12);
+      const mos = remainingMonths % 12;
+      const targetYear = new Date().getFullYear() + Math.ceil(remainingMonths / 12);
+      const durationStr = yrs > 0
+        ? `${yrs} Yıl${mos > 0 ? ' ' + mos + ' Ay' : ''}`
+        : `${mos} Ay`;
+      remainingYearsText = `${durationStr} (${remainingMonths} Ay)`;
+      breakevenYearText = `${durationStr} Kaldı (${targetYear})`;
     } else {
-      remainingYearsText = 'Kiracı Bekliyor';
-      breakevenYearText = '-';
+      remainingYearsText = 'Kira Girilmedi';
+      breakevenYearText = 'Kira Bekliyor';
     }
   }
 
   return {
     cur,
+    purchaseDate,
+    purchasePriceTL,
+    purchaseRate,
     acqCost,
     collectedInUnit,
     recoveredInUnit,
     remainingInUnit,
     currentMonthlyInUnit,
     amortPct,
+    paidMonthsCount,
     remainingMonths,
     remainingYearsText,
     breakevenYearText
@@ -1562,6 +1556,14 @@ function renderAll() {
 
 // ==================== TAB 1: DASHBOARD ====================
 
+function isPropertyContractAlert(prop) {
+  if (!prop || prop.status !== 'rented' || !prop.contractEnd) return false;
+  const today = new Date();
+  const endD = new Date(prop.contractEnd);
+  const diffDays = Math.ceil((endD - today) / (1000 * 60 * 60 * 24));
+  return diffDays >= -60 && diffDays <= 60;
+}
+
 function renderDashboard() {
   const periodKey = getPeriodKey();
   const fin = computePeriodFinancials(periodKey);
@@ -1592,15 +1594,33 @@ function renderDashboard() {
   const heroYearlyEl = document.getElementById('heroYearlyPowerVal');
   if (heroYearlyEl) heroYearlyEl.textContent = formatCurrency(yearlyPower);
 
-  document.getElementById('kpiTotalProps').textContent = state.properties.length;
+  const totalProps = state.properties.length;
+  const vacantCount = state.properties.filter(p => p.status !== 'rented').length;
+  const contractAlertCount = state.properties.filter(p => isPropertyContractAlert(p)).length;
+  const unpaidOrOverdueCount = state.properties.filter(p => {
+    if (p.status !== 'rented') return false;
+    const st = getPropertyPeriodStatus(p, periodKey).status;
+    return st === 'overdue' || st === 'partial' || st === 'unpaid';
+  }).length;
+
+  document.getElementById('kpiTotalProps').textContent = totalProps;
+  const occPct = totalProps > 0 ? Math.round((fin.activeTenantCount / totalProps) * 100) : 0;
+  const subOcc = document.getElementById('kpiSubOccupancy');
+  if (subOcc) subOcc.textContent = `${fin.activeTenantCount} Kirada (%${occPct})`;
+
   const kpiPaid = document.getElementById('kpiPaidCount');
   if (kpiPaid) kpiPaid.textContent = `${fin.paidCount} / ${fin.activeTenantCount}`;
-  document.getElementById('kpiOverdueCount').textContent = fin.overdueCount;
+  const subPaid = document.getElementById('kpiSubPaidPct');
+  if (subPaid) subPaid.textContent = `%${fin.collectionRate} Tahsilat`;
 
-  const kpiMonthly = document.getElementById('kpiMonthlyEstimate');
-  if (kpiMonthly) kpiMonthly.textContent = formatCurrency(monthlyPower);
-  const kpiYearly = document.getElementById('kpiYearlyEstimate');
-  if (kpiYearly) kpiYearly.textContent = formatCurrency(yearlyPower);
+  document.getElementById('kpiOverdueCount').textContent = unpaidOrOverdueCount;
+  const subOvd = document.getElementById('kpiSubOverdueAmt');
+  if (subOvd) subOvd.textContent = fin.totalRemaining > 0 ? `${formatCurrency(fin.totalRemaining)} Kalan` : 'Bekleyen Yok';
+
+  const alertsEl = document.getElementById('kpiAlertsCount');
+  if (alertsEl) alertsEl.textContent = vacantCount + contractAlertCount;
+  const subAlerts = document.getElementById('kpiSubAlertsDesc');
+  if (subAlerts) subAlerts.textContent = `${vacantCount} Boş • ${contractAlertCount} Zam`;
 
   renderQuickPropertiesBoard(periodKey);
   renderDashboardFancyVisuals(periodKey, fin);
@@ -1609,7 +1629,7 @@ function renderDashboard() {
 }
 
 function renderHomeDualExecutiveCharts(periodKey, fin) {
-  // 1. Left Card: Genel Tahsilat Grafiği (Crystal-Clear Breakdown + Segmented Bar + 10-Unit Status Dots)
+  // 1. Left Card: Genel Tahsilat Grafiği (Crystal-Clear Breakdown + Segmented Bar)
   const colBox = document.getElementById('homeGeneralCollectionChart');
   const colBadge = document.getElementById('homeColChartBadge');
   if (colBadge) colBadge.textContent = `%${fin.collectionRate} Tahsil Edildi`;
@@ -1624,13 +1644,11 @@ function renderHomeDualExecutiveCharts(periodKey, fin) {
     let paidCnt = 0;
     let partialCnt = 0;
     let overdueCnt = 0;
-    let vacantCnt = 0;
     state.properties.forEach(p => {
       const st = getPropertyPeriodStatus(p, periodKey);
       if (st.status === 'paid') paidCnt++;
-      else if (st.status === 'partial') partialCnt++;
+      else if (st.status === 'partial' || st.status === 'unpaid') partialCnt++;
       else if (st.status === 'overdue') overdueCnt++;
-      else if (st.status === 'vacant') vacantCnt++;
     });
 
     colBox.innerHTML = `
@@ -1658,33 +1676,38 @@ function renderHomeDualExecutiveCharts(periodKey, fin) {
     `;
   }
 
-  // 2. Right Card: Gayrimenkul Başa Baş (Amortisman) Grafiği
+  // 2. Right Card: Gayrimenkul Başa Baş (Amortisman) Grafiği (🪙 Altın veya 💵 Dolar Bazında)
   const roiBox = document.getElementById('homeBreakevenRoiChart');
-  const roiBadge = document.getElementById('homeRoiChartBadge');
+  document.querySelectorAll('.amort-unit-toggle .aut-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-aunit') === activeAmortUnit);
+  });
+
   if (roiBox) {
     if (!state.properties || state.properties.length === 0) {
-      if (roiBadge) roiBadge.textContent = 'TL / $ / € / Altın';
       roiBox.innerHTML = `
         <div style="font-size:0.73rem; color:var(--text-muted); padding:6px 0; line-height:1.45;">
-          Mülklerinizin edinim maliyetini <strong>Dolar, Euro, Gram Altın veya TL</strong> olarak girdiğinizde kaç yılda amorti edeceği burada grafiklenir.
+          Mülkünüzün <strong>TL alış maliyetini</strong> ve tarihini girdiğinizde; alış günkü <strong>Altın (Gram)</strong> veya <strong>Dolar ($)</strong> karşılığı ile kira dönüş süresi otomatik hesaplanır.
         </div>
       `;
     } else {
-      const statsList = state.properties.map(p => ({ p, st: computePropertyBreakevenStats(p) }));
-      const avgPct = Math.round(statsList.reduce((s, x) => s + x.st.amortPct, 0) / statsList.length);
-      if (roiBadge) roiBadge.textContent = `Ort. %${avgPct} Amorti`;
-
+      const statsList = state.properties.map(p => ({ p, st: computePropertyBreakevenStats(p, activeAmortUnit) }));
       const top3 = [...statsList].sort((a, b) => b.st.amortPct - a.st.amortPct).slice(0, 3);
+      const unitLabel = activeAmortUnit === 'USD' ? '💵 Dolar ($)' : '🪙 Gram Altın';
+
       roiBox.innerHTML = `
         <div class="hmc-roi-list">
           ${top3.map(({ p, st }) => `
             <div class="hmc-roi-item">
               <div class="hmc-roi-top">
-                <span class="hmc-roi-name">${escapeHtml(p.name.replace(/^\d+\.\s*/, ''))} (${st.cur})</span>
-                <strong>%${st.amortPct} • ${st.remainingMonths > 0 ? (st.remainingMonths / 12).toFixed(1) + ' Yıl Kaldı' : 'Amorti Etti!'}</strong>
+                <span class="hmc-roi-name">${escapeHtml(p.name.replace(/^\d+\.\s*/, ''))}</span>
+                <strong>%${st.amortPct} Döndü • ${st.remainingMonths > 0 ? st.remainingYearsText.split(' (')[0] + ' Kaldı' : (st.acqCost > 0 ? 'Amorti Etti!' : 'Maliyet Girin')}</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:0.61rem; color:var(--text-muted); margin-bottom:1px;">
+                <span>Dönen: ${formatUnitCurrency(st.collectedInUnit, st.cur)} / Alış: ${formatUnitCurrency(st.acqCost, st.cur)}</span>
+                <span>${unitLabel}</span>
               </div>
               <div class="hmc-roi-track">
-                <div class="hmc-roi-fill" style="width:${st.amortPct}%"></div>
+                <div class="hmc-roi-fill" style="width:${Math.max(4, st.amortPct)}%"></div>
               </div>
             </div>
           `).join('')}
@@ -1696,13 +1719,14 @@ function renderHomeDualExecutiveCharts(periodKey, fin) {
 
 function setHomeFilter(hf) {
   homePropertyFilter = hf;
-  document.querySelectorAll('#homeKpiFilterStrip .kpi-pill[data-hfilter]').forEach(el => {
+  document.querySelectorAll('#homeKpiFilterStrip [data-hfilter]').forEach(el => {
     el.classList.toggle('active-kpi', el.getAttribute('data-hfilter') === hf);
   });
   const titleEl = document.getElementById('homeListHeaderTitle');
   if (titleEl) {
     if (hf === 'paid') titleEl.innerHTML = `<i class="ph-fill ph-check-circle"></i> Bu Ay Kirasını Ödeyen Mülkler`;
     else if (hf === 'overdue') titleEl.innerHTML = `<i class="ph-fill ph-warning-circle"></i> Ödemesi Bekleyen / Geciken Mülkler`;
+    else if (hf === 'alerts') titleEl.innerHTML = `<i class="ph-fill ph-bell-ringing"></i> Boş Mülkler & Sözleşme / Zam Dönemi Yaklaşanlar`;
     else titleEl.innerHTML = `<i class="ph-fill ph-buildings"></i> Gayrimenkullerim & Bu Ayki Durum`;
   }
   renderQuickPropertiesBoard(getPeriodKey());
@@ -1750,9 +1774,10 @@ function renderQuickPropertiesBoard(periodKey) {
       else if (info.status === 'paid') rank = 4;
     }
     return { prop, info, idx, rank };
-  }).filter(({ info }) => {
+  }).filter(({ prop, info }) => {
     if (homePropertyFilter === 'paid') return info.status === 'paid';
     if (homePropertyFilter === 'overdue') return info.status === 'overdue' || info.status === 'partial' || info.status === 'unpaid';
+    if (homePropertyFilter === 'alerts') return prop.status !== 'rented' || isPropertyContractAlert(prop);
     return true;
   }).sort((a, b) => a.rank - b.rank || a.idx - b.idx);
 
@@ -3297,15 +3322,24 @@ function getActiveReportDataset() {
   let rows = [];
 
   if (type === 'breakeven_roi') {
-    title = `Gayrimenkul Edinim Maliyeti & Başa Baş (Amortisman) Raporu (TL / USD / EUR / Altın)`;
-    headers = ['Gayrimenkul', 'Edinim Birimi', 'Edinim Maliyeti', 'Tahsil Tarihindeki Kurla Biriken Kira', 'Kalan Amortisman', 'Amorti Oranı', 'Başa Baş Noktası (Kalan Süre)'];
+    const unitName = activeAmortUnit === 'USD' ? 'DOLAR ($)' : 'ALTIN (GRAM)';
+    title = `Gayrimenkul Maliyet & Başa Baş (Amortisman) Raporu — ${unitName} BAZINDA`;
+    headers = [
+      'Gayrimenkul & Alış Tarihi',
+      'TL Alış Maliyeti (₺)',
+      `Alış Günü ${unitName} Karşılığı`,
+      `Ödenen Kiralardan Geri Dönen`,
+      `Kalan Maliyet`,
+      'Geri Dönüş Oranı',
+      'Tamamının Dönmesine Kalan Süre'
+    ];
     state.properties.forEach(p => {
-      const st = computePropertyBreakevenStats(p);
+      const st = computePropertyBreakevenStats(p, activeAmortUnit);
       rows.push([
-        p.name,
-        st.cur === 'XAU' ? 'Altın (Gram)' : st.cur,
-        formatUnitCurrency(st.acqCost, st.cur),
-        formatUnitCurrency(st.collectedInUnit, st.cur),
+        `${p.name} (${formatDateTR(st.purchaseDate)})`,
+        formatCurrency(st.purchasePriceTL),
+        `${formatUnitCurrency(st.acqCost, st.cur)} (Kur: ${st.purchaseRate}₺)`,
+        `${formatUnitCurrency(st.collectedInUnit, st.cur)} (${st.paidMonthsCount} Kira)`,
         formatUnitCurrency(st.remainingInUnit, st.cur),
         `%${st.amortPct}`,
         st.breakevenYearText
@@ -3411,24 +3445,37 @@ function renderActiveReport() {
     const periodKey = getPeriodKey();
     const fin = computePeriodFinancials(periodKey);
     if (type === 'breakeven_roi') {
-      const statsList = state.properties.map(p => ({ p, st: computePropertyBreakevenStats(p) }));
+      const statsList = state.properties.map(p => ({ p, st: computePropertyBreakevenStats(p, activeAmortUnit) }));
+      const unitLabel = activeAmortUnit === 'USD' ? '💵 Dolar ($)' : '🪙 Gram Altın';
       chartBox.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:6px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
           <div>
-            <strong style="font-size:0.88rem; display:block;">⚖️ Gayrimenkul Edinim Maliyeti & Başa Baş (Amortisman) Grafiği</strong>
-            <span style="font-size:0.73rem; color:var(--text-muted);">Kira tahsilatları, tahsil edildiği tarihteki USD / EUR / Gram Altın / TL kuruyla edinim maliyetinden düşülür</span>
+            <strong style="font-size:0.9rem; display:block;">⚖️ Gayrimenkul Alış Maliyeti & Başa Baş (Amortisman) Analizi (${unitLabel})</strong>
+            <span style="font-size:0.73rem; color:var(--text-muted);">
+              TL alış bedeliniz alış günkü ${unitLabel} kuruna; ödenen kiralarınız da kira tarihindeki ${unitLabel} kuruna çevrilerek ne kadarının geri döndüğü ve kalan süre hesaplanır.
+            </span>
           </div>
-          <span class="status-pill pill-paid">Çoklu Döviz & Altın Motoru</span>
+          <div class="amort-unit-toggle">
+            <button type="button" class="aut-btn ${activeAmortUnit === 'XAU' ? 'active' : ''}" data-aunit="XAU" onclick="setAmortizationUnit('XAU')">🪙 Altın (Gram) Olarak Gör</button>
+            <button type="button" class="aut-btn ${activeAmortUnit === 'USD' ? 'active' : ''}" data-aunit="USD" onclick="setAmortizationUnit('USD')">💵 Dolar ($) Olarak Gör</button>
+          </div>
         </div>
         <div class="ranking-bars-box">
           ${statsList.map(({ p, st }) => `
-            <div class="rank-bar-item" onclick="openPropertyModal('${p.id}')" style="cursor:pointer;">
-              <div class="rank-bar-top">
-                <span><strong>${escapeHtml(p.name)}</strong> <small style="color:var(--text-muted)">(${formatUnitCurrency(st.collectedInUnit, st.cur)} / ${formatUnitCurrency(st.acqCost, st.cur)})</small></span>
-                <strong style="color:#0b2545">%${st.amortPct} Amorti • Başa Baş: ${st.breakevenYearText}</strong>
+            <div class="rank-bar-item" onclick="openPropertyModal('${p.id}')" style="cursor:pointer; padding:8px 10px; border-radius:10px; background:var(--bg-surface); border:1px solid var(--border-color);">
+              <div class="rank-bar-top" style="flex-wrap:wrap; gap:4px;">
+                <span>
+                  <strong>${escapeHtml(p.name)}</strong>
+                  <small style="color:var(--text-muted); font-weight:600;">
+                    • Alış: ${formatCurrency(st.purchasePriceTL)} (${formatDateTR(st.purchaseDate)} = <strong>${formatUnitCurrency(st.acqCost, st.cur)}</strong>)
+                  </small>
+                </span>
+                <strong style="color:#008f65;">
+                  Geri Dönen: ${formatUnitCurrency(st.collectedInUnit, st.cur)} (%${st.amortPct}) • Kalan: ${formatUnitCurrency(st.remainingInUnit, st.cur)} (${st.breakevenYearText})
+                </strong>
               </div>
-              <div class="rank-bar-track" style="height:10px;">
-                <div class="rank-bar-fill" style="width:${Math.max(5, st.amortPct)}%; background:linear-gradient(90deg, #0b2545, #00a878);"></div>
+              <div class="rank-bar-track" style="height:10px; margin-top:4px;">
+                <div class="rank-bar-fill" style="width:${Math.max(4, st.amortPct)}%; background:linear-gradient(90deg, #0b2545, #00a878);"></div>
               </div>
             </div>
           `).join('')}
@@ -3613,12 +3660,8 @@ function openPropertyModal(propId = null) {
       roomSel.value = rVal;
     }
     document.getElementById('propDues').value = p.dues || '';
-    document.getElementById('propPurchaseDate').value = p.purchaseDate || '';
-    document.getElementById('propPurchasePrice').value = p.purchasePrice || '';
-    const pCurEl = document.getElementById('propPurchaseCurrency');
-    if (pCurEl) pCurEl.value = p.purchaseCurrency || 'USD';
-    const pCostEl = document.getElementById('propPurchaseCostInCurrency');
-    if (pCostEl) pCostEl.value = p.purchaseCostInCurrency || p.purchasePrice || 115000;
+    document.getElementById('propPurchaseDate').value = p.purchaseDate || '2021-05-14';
+    document.getElementById('propPurchasePrice').value = getPropertyPurchasePriceTL(p) || '';
     document.getElementById('propCurrentValue').value = p.currentValue || '';
     document.getElementById('propFixtures').value = p.fixtures || '';
     document.getElementById('propPhotoUrl').value = p.photoUrl || '';
@@ -3640,11 +3683,29 @@ function openPropertyModal(propId = null) {
     const todayIso = new Date().toISOString().slice(0, 10);
     const nextYr = new Date();
     nextYr.setFullYear(nextYr.getFullYear() + 1);
+    document.getElementById('propPurchaseDate').value = todayIso;
+    document.getElementById('propPurchasePrice').value = '';
     document.getElementById('propContractStart').value = todayIso;
     document.getElementById('propContractEnd').value = nextYr.toISOString().slice(0, 10);
   }
   togglePropertyTenantQuickFields();
+  updatePropertyAcquisitionAutoPreview();
   openModal('propertyModal');
+}
+
+function updatePropertyAcquisitionAutoPreview() {
+  const box = document.getElementById('propAcquisitionAutoPreview');
+  if (!box) return;
+  const pDate = document.getElementById('propPurchaseDate')?.value || new Date().toISOString().slice(0, 10);
+  const priceTL = Number(document.getElementById('propPurchasePrice')?.value || 0);
+  if (priceTL <= 0) {
+    box.innerHTML = `🪙 Alış tarihi ve <strong>TL maliyet bedeli</strong> girdiğinizde, o günkü <strong>Gram Altın</strong> ve <strong>Dolar ($)</strong> karşılığı otomatik hesaplanır.`;
+    return;
+  }
+  const rates = getHistoricalFxRates(pDate);
+  const goldGr = (priceTL / Math.max(0.01, rates.XAU)).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const usdAmt = (priceTL / Math.max(0.01, rates.USD)).toLocaleString('tr-TR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  box.innerHTML = `⚡ <strong>${formatDateTR(pDate)}</strong> Alış Günü Kuruyla Otomatik Karşılığı: <strong>🪙 ${goldGr} Gr Altın</strong> <small>(1 Gr = ${rates.XAU} ₺)</small>  •  <strong>💵 ${usdAmt} $</strong> <small>(1 $ = ${rates.USD} ₺)</small>`;
 }
 
 function savePropertyForm(e) {
