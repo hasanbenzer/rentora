@@ -6,7 +6,7 @@
 const STORAGE_KEY = 'rentora_enterprise_v2';
 const MEMBERS_REGISTRY_KEY = 'rentora_members_registry_v1';
 const ACTIVE_SESSION_KEY = 'rentora_active_member_session_v1';
-const CURRENT_APP_VERSION = '1.2.8';
+const CURRENT_APP_VERSION = '1.3.0';
 const AUTH_GATE_STORAGE_KEY = 'rentora_device_auth_token_v1';
 const AUTH_EXPECTED_SHA256 = '7a29b5e673caa030731ebf304028832c0d4617404f395950cb64a2f80dbc0ae6';
 const LEGACY_KEYS = ['rentora_enterprise_v1', 'avigen_kira_takip_v1'];
@@ -475,13 +475,29 @@ function renderLicenseAndMembershipView() {
     if (ev.isExpired) {
       banner.style.display = 'flex';
       banner.className = 'license-top-banner expired no-print';
+      banner.onclick = () => { switchTab('documents'); switchSubManagement('license'); };
       banner.innerHTML = `<i class="ph-fill ph-warning-octagon"></i> <span><strong>Lisans Süreniz Doldu!</strong> Salt-okunur moddasınız. Yenilemek için dokunun.</span>`;
     } else if (ev.remainingDays <= 7) {
       banner.style.display = 'flex';
       banner.className = 'license-top-banner warning no-print';
+      banner.onclick = () => { switchTab('documents'); switchSubManagement('license'); };
       banner.innerHTML = `<i class="ph-fill ph-clock-countdown"></i> <span><strong>${ev.plan.name}</strong> bitimine <strong>${ev.remainingDays} gün</strong> kaldı. Uzatmak için dokunun.</span>`;
     } else {
-      banner.style.display = 'none';
+      const daysSinceBackup = state.lastWhatsAppBackupAt
+        ? Math.floor((Date.now() - state.lastWhatsAppBackupAt) / (1000 * 60 * 60 * 24))
+        : 999;
+      const needsBackupReminder = state.userModifiedData &&
+        state.properties && state.properties.length > 0 &&
+        ((state.changesSinceBackup || 0) >= 3 || daysSinceBackup >= 7);
+
+      if (needsBackupReminder) {
+        banner.style.display = 'flex';
+        banner.className = 'license-top-banner backup-remind no-print';
+        banner.onclick = () => shareBackupViaWhatsApp();
+        banner.innerHTML = `<i class="ph-fill ph-whatsapp-logo"></i> <span><strong>Yedek Hatırlatması:</strong> Son değişikliklerinizi tek dokunuşla WhatsApp'ta kendinize yedekleyin.</span> <span style="text-decoration:underline; white-space:nowrap;">Şimdi Yedekle →</span>`;
+      } else {
+        banner.style.display = 'none';
+      }
     }
   }
 
@@ -901,7 +917,10 @@ function computePropertyBreakevenStats(prop, unitOverride = null) {
 }
 
 function saveState(markUserModified = true) {
-  if (markUserModified) state.userModifiedData = true;
+  if (markUserModified) {
+    state.userModifiedData = true;
+    state.changesSinceBackup = (state.changesSinceBackup || 0) + 1;
+  }
   state.cleanProdMigratedV1 = true;
   state.schemaVersion = APP_SCHEMA_VERSION;
   state.updatedAt = Date.now();
@@ -1804,20 +1823,36 @@ function renderHomeDualExecutiveCharts(periodKey, fin) {
       `;
     } else {
       const statsList = state.properties.map(p => ({ p, st: computePropertyBreakevenStats(p, activeAmortUnit) }));
-      const top3 = [...statsList].sort((a, b) => b.st.amortPct - a.st.amortPct).slice(0, 3);
+      const sortedAll = [...statsList].sort((a, b) => b.st.amortPct - a.st.amortPct);
       const unitLabel = activeAmortUnit === 'USD' ? '💵 Dolar ($)' : '🪙 Gram Altın';
 
+      const totalPortAcq = statsList.reduce((s, x) => s + (x.st.acqCost || 0), 0);
+      const totalPortCol = statsList.reduce((s, x) => s + (x.st.collectedInUnit || 0), 0);
+      const totalPortPct = totalPortAcq > 0 ? Math.min(100, Number(((totalPortCol / totalPortAcq) * 100).toFixed(1))) : 0;
+
       roiBox.innerHTML = `
-        <div class="hmc-roi-list">
-          ${top3.map(({ p, st }) => `
+        <div class="portfolio-amort-summary-bar">
+          <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.68rem; margin-bottom:3px;">
+            <strong style="color:var(--text-main);">Tüm Portföy (${unitLabel})</strong>
+            <strong style="color:#008f65;">%${totalPortPct} Geri Döndü</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:0.62rem; color:var(--text-muted); margin-bottom:4px;">
+            <span>Toplanan: <strong>${formatUnitCurrency(totalPortCol, activeAmortUnit)}</strong></span>
+            <span>Toplam Alış: <strong>${formatUnitCurrency(totalPortAcq, activeAmortUnit)}</strong></span>
+          </div>
+          <div class="hmc-roi-track" style="height:7px;">
+            <div class="hmc-roi-fill" style="width:${Math.max(3, totalPortPct)}%"></div>
+          </div>
+        </div>
+        <div class="hmc-roi-list" style="max-height:112px; overflow-y:auto; padding-right:2px; margin-top:6px;">
+          ${sortedAll.map(({ p, st }) => `
             <div class="hmc-roi-item">
               <div class="hmc-roi-top">
                 <span class="hmc-roi-name">${escapeHtml(p.name.replace(/^\d+\.\s*/, ''))}</span>
-                <strong>%${st.amortPct} Döndü • ${st.remainingMonths > 0 ? st.remainingYearsText.split(' (')[0] + ' Kaldı' : (st.acqCost > 0 ? 'Amorti Etti!' : 'Maliyet Girin')}</strong>
+                <strong>%${st.amortPct} • ${st.remainingMonths > 0 ? st.remainingYearsText.split(' (')[0] + ' Kaldı' : (st.acqCost > 0 ? 'Amorti Etti!' : 'Maliyet Girin')}</strong>
               </div>
-              <div style="display:flex; justify-content:space-between; font-size:0.61rem; color:var(--text-muted); margin-bottom:1px;">
+              <div style="display:flex; justify-content:space-between; font-size:0.6rem; color:var(--text-muted); margin-bottom:1px;">
                 <span>Dönen: ${formatUnitCurrency(st.collectedInUnit, st.cur)} / Alış: ${formatUnitCurrency(st.acqCost, st.cur)}</span>
-                <span>${unitLabel}</span>
               </div>
               <div class="hmc-roi-track">
                 <div class="hmc-roi-fill" style="width:${Math.max(4, st.amortPct)}%"></div>
@@ -1973,6 +2008,26 @@ function openPropertyQuickActionSheet(propId, periodKey = getPeriodKey()) {
   const info = getPropertyPeriodStatus(prop, periodKey);
   const isRented = prop.status === 'rented';
 
+  // Build 12-Month Mini Payment Strip for activeYear
+  const miniMonthsHtml = isRented ? MONTHS_TR.map((mName, idx) => {
+    const mNum = idx + 1;
+    const pKey = getPeriodKey(activeYear, mNum);
+    const mInfo = getPropertyPeriodStatus(prop, pKey);
+    let cls = 'ym-pending';
+    let sym = '•';
+    if (mInfo.status === 'paid') { cls = 'ym-paid'; sym = '✓'; }
+    else if (mInfo.status === 'partial') { cls = 'ym-partial'; sym = '½'; }
+    else if (mInfo.status === 'overdue') { cls = 'ym-overdue'; sym = '!'; }
+    const isCurSel = (pKey === periodKey);
+
+    return `
+      <button type="button" class="mini-12m-cell ${cls} ${isCurSel ? 'active-cell' : ''}" onclick="closeModal('detailModal'); openPaymentModal('${prop.id}', '${pKey}')" title="${mName} ${activeYear}: ${mInfo.label} (${formatCurrency(mInfo.paid)} / ${formatCurrency(mInfo.expected)})">
+        <span class="m12-lbl">${mName.slice(0, 3)}</span>
+        <strong class="m12-sym">${sym}</strong>
+      </button>
+    `;
+  }).join('') : '';
+
   document.getElementById('detailModalTitle').textContent = prop.name;
   document.getElementById('detailModalBody').innerHTML = `
     <div class="quick-hub-banner ${info.status}">
@@ -2001,6 +2056,14 @@ function openPropertyQuickActionSheet(propId, periodKey = getPeriodKey()) {
           <span class="l-label">Kalan Borç</span>
           <strong class="l-val">${formatCurrency(info.remaining)}</strong>
         </div>
+      </div>
+
+      <div class="mini-12m-strip-box">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+          <strong style="font-size:0.73rem; color:var(--text-main);">📅 ${activeYear} Yılı 12 Aylık Ödeme Şeridi</strong>
+          <span style="font-size:0.65rem; color:var(--text-muted);">Aya dokunarak tahsilat girin</span>
+        </div>
+        <div class="mini-12m-grid">${miniMonthsHtml}</div>
       </div>
     ` : ''}
 
@@ -2036,7 +2099,15 @@ function openPropertyQuickActionSheet(propId, periodKey = getPeriodKey()) {
           <i class="ph-fill ph-whatsapp-logo"></i>
           <div>
             <strong>WhatsApp Hatırlatma / IBAN Gönder</strong>
-            <span>Kiracıya tek tuşla ödeme mesajı gönder</span>
+            <span>Kiracıya tek tuşla bu ayın ödeme mesajını gönder</span>
+          </div>
+        </button>
+
+        <button class="qhub-btn whatsapp" onclick="sendYearlyTenantStatementWhatsApp('${prop.id}', ${activeYear})">
+          <i class="ph-bold ph-list-checks"></i>
+          <div>
+            <strong>📲 Kiracıya ${activeYear} Yılı 12 Aylık Hesap Ekstresi Gönder (WhatsApp)</strong>
+            <span>Ödenen tüm ayları ve kalan bakiyeyi toplu liste olarak gönder</span>
           </div>
         </button>
       ` : ''}
@@ -3096,6 +3167,32 @@ function calculateRentIncrease() {
   if (yrEl) yrEl.textContent = formatCurrency(yearly);
 }
 
+function preservePriorMonthsRentBeforeIncrease(prop, oldRent, effectiveDateIso = '') {
+  if (!prop || !oldRent || Number(oldRent) <= 0) return;
+  const effIso = effectiveDateIso || new Date().toISOString().slice(0, 10);
+  const effY = Number(effIso.slice(0, 4)) || new Date().getFullYear();
+  const effM = Number(effIso.slice(5, 7)) || (new Date().getMonth() + 1);
+  const acqYm = String(prop.purchaseDate || prop.contractStart || '').slice(0, 7);
+
+  for (let m = 1; m < effM; m++) {
+    const pKey = `${effY}-${String(m).padStart(2, '0')}`;
+    if (acqYm && /^\d{4}-\d{2}$/.test(acqYm) && pKey < acqYm) continue;
+    const existing = state.payments[`${prop.id}_${pKey}`];
+    if (!existing) {
+      state.payments[`${prop.id}_${pKey}`] = {
+        paidAmount: 0,
+        expectedAmount: Number(oldRent),
+        date: '',
+        method: 'Banka Havale/EFT',
+        note: 'Kira artışı öncesi dönem kira bedeli korundu',
+        tenantId: prop.tenantId
+      };
+    } else if (!existing.expectedAmount) {
+      existing.expectedAmount = Number(oldRent);
+    }
+  }
+}
+
 function applyCalculatedRentToProperty() {
   const propId = document.getElementById('calcPropertySelect')?.value;
   const prop = state.properties.find(p => p.id === propId);
@@ -3104,7 +3201,10 @@ function applyCalculatedRentToProperty() {
     return;
   }
   const { cur, rate, newRent } = getCalculatedRentValues();
-  if (!confirm(`${prop.name} (${prop.tenantName}) mevcut kirası ${formatCurrency(cur)} -> %${rate} artışla ${formatCurrency(newRent)} olarak güncellensin mi?`)) return;
+  if (!confirm(`${prop.name} (${prop.tenantName}) mevcut kirası ${formatCurrency(cur)} -> %${rate} artışla ${formatCurrency(newRent)} olarak güncellensin mi? (Zam tarihinden önceki ayların eski kira tutarı korunacaktır)`)) return;
+
+  const effDate = document.getElementById('calcEffectiveDate')?.value || new Date().toISOString().slice(0, 10);
+  preservePriorMonthsRentBeforeIncrease(prop, prop.rentAmount || cur, effDate);
 
   prop.rentAmount = newRent;
   const tenant = state.tenants.find(t => t.id === prop.tenantId || (t.propertyId === prop.id && t.isActive));
@@ -3926,6 +4026,10 @@ function savePropertyForm(e) {
     maintenanceLogs: existing?.maintenanceLogs || []
   };
 
+  if (existing && Number(existing.rentAmount) > 0 && Number(existing.rentAmount) !== rentAmount) {
+    preservePriorMonthsRentBeforeIncrease(existing, existing.rentAmount, `${activeYear}-${String(activeMonth).padStart(2, '0')}-01`);
+  }
+
   const idx = state.properties.findIndex(x => x.id === id);
   if (idx >= 0) state.properties[idx] = propObj;
   else state.properties.unshift(propObj);
@@ -3972,20 +4076,24 @@ function renderHistoricalRentsModalBody() {
 
   prop.yearlyRents = prop.yearlyRents || {};
   const curYr = new Date().getFullYear();
-  const pYearFromAcq = Number(String(prop.purchaseDate || '').slice(0, 4)) || 2020;
-  const startYr = Math.min(2020, Math.max(2015, pYearFromAcq));
+  const acqIso = String(prop.purchaseDate || prop.contractStart || '').trim();
+  const acqY = Number(acqIso.slice(0, 4)) || 2020;
+  const acqM = Number(acqIso.slice(5, 7)) || 1;
+  const startYr = Math.min(curYr, Math.max(2015, acqY));
   const years = [];
   for (let y = curYr; y >= startYr; y--) {
     years.push(y);
   }
 
   box.innerHTML = years.map(yr => {
+    const startMonthForYr = (yr === acqY && acqM > 1) ? acqM : 1;
+    const activeMonthsInYr = 12 - startMonthForYr + 1;
     let paidMonthsInYr = 0;
     let detectedRent = Number(prop.yearlyRents[yr] || 0);
     let totalGoldGrInYr = 0;
     let totalUsdInYr = 0;
 
-    for (let m = 1; m <= 12; m++) {
+    for (let m = startMonthForYr; m <= 12; m++) {
       const pKey = `${yr}-${String(m).padStart(2, '0')}`;
       const rec = state.payments[`${prop.id}_${pKey}`];
       if (rec) {
@@ -4007,22 +4115,26 @@ function renderHistoricalRentsModalBody() {
       detectedRent = Number(prop.rentAmount || 0);
     }
 
+    const acqNote = (yr === acqY && acqM > 1)
+      ? ` <small style="color:#0284c7; font-weight:700;">(Alış: ${MONTHS_TR[acqM - 1]} ${acqY} → ${activeMonthsInYr} Ay)</small>`
+      : '';
+
     const sampleRates = getHistoricalFxRates(`${yr}-06-15`);
     const statusBadge = paidMonthsInYr > 0
-      ? `<span class="status-pill pill-paid" style="font-size:0.65rem;">✓ ${paidMonthsInYr}/12 Ay Ödendi (${totalGoldGrInYr.toFixed(1)} Gr Altın • ${Math.round(totalUsdInYr)} $)</span>`
+      ? `<span class="status-pill pill-paid" style="font-size:0.65rem;">✓ ${paidMonthsInYr}/${activeMonthsInYr} Ay Ödendi (${totalGoldGrInYr.toFixed(1)} Gr Altın • ${Math.round(totalUsdInYr)} $)</span>`
       : (detectedRent > 0
-          ? `<span class="status-pill pill-pending" style="font-size:0.65rem;">Tahakkuk: ${formatCurrency(detectedRent)}/ay</span>`
+          ? `<span class="status-pill pill-pending" style="font-size:0.65rem;">Tahakkuk: ${formatCurrency(detectedRent)}/ay (${activeMonthsInYr} Ay)</span>`
           : `<span class="status-pill pill-vacant" style="font-size:0.65rem;">Kayıt Yok (Ort. Altın: ~${sampleRates.XAU}₺/gr)</span>`);
 
     return `
       <div class="compact-row" style="flex-wrap:wrap; gap:8px; padding:9px 11px;">
         <div style="min-width:170px; flex:1;">
-          <strong style="font-size:0.86rem; display:block;">🗓️ ${yr} Yılı Aylık Kira Bedeli</strong>
+          <strong style="font-size:0.86rem; display:block;">🗓️ ${yr} Yılı Aylık Kira Bedeli${acqNote}</strong>
           <div style="margin-top:3px;">${statusBadge}</div>
         </div>
         <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
           <input type="number" id="histYrInput_${yr}" class="form-control" style="width:130px; height:34px; font-weight:800;" min="0" step="100" value="${detectedRent > 0 ? detectedRent : ''}" placeholder="${yr} Aylık ₺" />
-          <button type="button" class="btn-primary-sm" style="height:34px; background:#00a878 !important;" onclick="applyHistoricalYearRent(${yr}, true)" title="${yr} yılının 12 ayını bu kira bedeliyle ÖDENDİ olarak kaydet ve o yılın altın/dolar kurundan amortismana ekle">
+          <button type="button" class="btn-primary-sm" style="height:34px; background:#00a878 !important;" onclick="applyHistoricalYearRent(${yr}, true)" title="${yr} yılının (${activeMonthsInYr} ay) kirasını ÖDENDİ olarak kaydet ve o yılın altın/dolar kurundan amortismana ekle">
             <i class="ph-bold ph-check"></i> Yılı Ödendi Kaydet
           </button>
           <button type="button" class="btn-outline-sm" style="height:34px;" onclick="applyHistoricalYearRent(${yr}, false)" title="Sadece ${yr} yılının aylık kira tahakkukunu güncelle">
@@ -4058,13 +4170,26 @@ function applyHistoricalYearRent(yr, markAllPaid = true) {
     prop.rentAmount = rentVal;
   }
 
+  const acqIso = String(prop.purchaseDate || prop.contractStart || '').trim();
+  const acqY = Number(acqIso.slice(0, 4)) || 0;
+  const acqM = Number(acqIso.slice(5, 7)) || 1;
+  const startMonthForYr = (yr === acqY && acqM > 1) ? acqM : 1;
+
+  // Remove any accidental records prior to the purchase month in the acquisition year
+  if (yr === acqY && acqM > 1) {
+    for (let m = 1; m < acqM; m++) {
+      const preKey = `${yr}-${String(m).padStart(2, '0')}`;
+      delete state.payments[`${prop.id}_${preKey}`];
+    }
+  }
+
   const dueDayStr = String(prop.dueDay || 5).padStart(2, '0');
   const nowD = new Date();
   const curY = nowD.getFullYear();
   const curM = nowD.getMonth() + 1;
+  let appliedCount = 0;
 
-  for (let m = 1; m <= 12; m++) {
-    // If current year and marking paid, only mark months up to current month as paid
+  for (let m = startMonthForYr; m <= 12; m++) {
     const isFutureMonthInCurrentYear = (yr === curY && m > curM);
     const pKey = `${yr}-${String(m).padStart(2, '0')}`;
     const accrualDate = `${pKey}-${dueDayStr}`;
@@ -4072,6 +4197,7 @@ function applyHistoricalYearRent(yr, markAllPaid = true) {
     const existing = state.payments[`${prop.id}_${pKey}`];
 
     if (markAllPaid && !isFutureMonthInCurrentYear) {
+      appliedCount++;
       state.payments[`${prop.id}_${pKey}`] = {
         paidAmount: rentVal,
         expectedAmount: rentVal,
@@ -4083,6 +4209,7 @@ function applyHistoricalYearRent(yr, markAllPaid = true) {
         tenantId: prop.tenantId
       };
     } else {
+      appliedCount++;
       const currentPaid = existing ? Number(existing.paidAmount || 0) : 0;
       state.payments[`${prop.id}_${pKey}`] = {
         ...(existing || {}),
@@ -4099,8 +4226,8 @@ function applyHistoricalYearRent(yr, markAllPaid = true) {
   renderHistoricalRentsModalBody();
   renderAll();
   showToast(markAllPaid
-    ? `✅ ${yr} yılı kiraları (${formatCurrency(rentVal)}/ay) ödendi olarak kaydedildi ve ${yr} altın/dolar kurundan amortismana eklendi!`
-    : `📝 ${yr} yılı aylık kira tahakkuku ${formatCurrency(rentVal)} olarak güncellendi!`);
+    ? `✅ ${yr} yılı (${appliedCount} Ay • ${formatCurrency(rentVal)}/ay) ödendi olarak kaydedildi ve amortismana eklendi!`
+    : `📝 ${yr} yılı (${appliedCount} Ay) kira tahakkuku ${formatCurrency(rentVal)} olarak güncellendi!`);
 }
 
 function clearHistoricalYearRent(yr) {
@@ -4941,6 +5068,62 @@ function sendThankYouWhatsApp(propId, periodKey = getPeriodKey()) {
   openWhatsAppLink(prop.tenantPhone, msg);
 }
 
+function sendYearlyTenantStatementWhatsApp(propId, yr = activeYear) {
+  const prop = state.properties.find(p => p.id === propId);
+  if (!prop) return;
+
+  const nowD = new Date();
+  const realY = nowD.getFullYear();
+  const realM = nowD.getMonth() + 1;
+  const maxMonthToCheck = (yr === realY) ? realM : 12;
+
+  const acqIso = String(prop.purchaseDate || prop.contractStart || '').trim();
+  const acqY = Number(acqIso.slice(0, 4)) || 0;
+  const acqM = Number(acqIso.slice(5, 7)) || 1;
+  const startM = (yr === acqY && acqM > 1) ? acqM : 1;
+
+  let totalPaidYr = 0;
+  let totalRemainingYr = 0;
+  const lines = [];
+
+  for (let m = startM; m <= 12; m++) {
+    const pKey = getPeriodKey(yr, m);
+    const info = getPropertyPeriodStatus(prop, pKey);
+    const mName = MONTHS_TR[m - 1];
+
+    if (info.status === 'paid') {
+      totalPaidYr += info.paid;
+      const dTxt = info.payment?.date ? ` (${formatDateTR(info.payment.date)})` : '';
+      lines.push(`✅ *${mName} ${yr}:* ${formatCurrency(info.paid)} — Ödendi${dTxt}`);
+    } else if (info.status === 'partial') {
+      totalPaidYr += info.paid;
+      totalRemainingYr += info.remaining;
+      lines.push(`🟠 *${mName} ${yr}:* Ödenen ${formatCurrency(info.paid)} / *Kalan: ${formatCurrency(info.remaining)}*`);
+    } else if (m <= maxMonthToCheck) {
+      totalRemainingYr += info.remaining;
+      lines.push(`🔴 *${mName} ${yr}:* *${formatCurrency(info.remaining)} — Ödeme Bekliyor*`);
+    } else {
+      lines.push(`⚪ *${mName} ${yr}:* ${formatCurrency(info.expected)} (Vadesi Gelmedi)`);
+    }
+  }
+
+  const ibanBlock = state.owner?.iban
+    ? `\n\n🏦 *Ödeme Hesabı (IBAN):*\n${state.owner.bank || ''}\n${state.owner.iban}\nAlıcı: ${state.owner.name || ''}`
+    : '';
+
+  const msg = `📋 *${yr} YILI KİRA HESAP EKSTRESİ*\n` +
+    `Sayın *${prop.tenantName}*,\n` +
+    `Taşınmaz: *${prop.name}*\n\n` +
+    lines.join('\n') +
+    `\n\n📊 *${yr} Yılı Özet:*\n` +
+    `• Toplam Ödenen: *${formatCurrency(totalPaidYr)}*\n` +
+    `• Güncel Kalan Borç: *${formatCurrency(totalRemainingYr)}*` +
+    ibanBlock +
+    `\n\nİyi günler dileriz.\n— ${state.owner?.name || 'RENTORA Gayrimenkul Yönetimi'}`;
+
+  openWhatsAppLink(prop.tenantPhone, msg);
+}
+
 function populateSettingsFields() {
   const o = state.owner || {};
   const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
@@ -4996,7 +5179,15 @@ function exportExcelCsv() {
   showToast('Portföy Excel (CSV) raporu indirildi 📊');
 }
 
+function markBackupCompletedNow() {
+  state.lastWhatsAppBackupAt = Date.now();
+  state.changesSinceBackup = 0;
+  saveState(false);
+  renderLicenseAndMembershipView();
+}
+
 function downloadBackupJson() {
+  markBackupCompletedNow();
   const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -5033,6 +5224,7 @@ function buildWhatsAppBackupMessage() {
 }
 
 function shareBackupViaWhatsApp() {
+  markBackupCompletedNow();
   const msg = buildWhatsAppBackupMessage();
   try {
     navigator.clipboard?.writeText(msg);
@@ -5044,6 +5236,7 @@ function shareBackupViaWhatsApp() {
 }
 
 function copyWhatsAppBackupCodeOnly() {
+  markBackupCompletedNow();
   const msg = buildWhatsAppBackupMessage();
   navigator.clipboard?.writeText(msg);
   showToast('Yedek mesajı panoya kopyalandı! WhatsApp\'ta kendinize yapıştırabilirsiniz 📋');
