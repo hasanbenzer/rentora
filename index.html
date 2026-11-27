@@ -309,11 +309,19 @@
 
         <!-- 4. SINGLE-SCREEN PROPERTY LIST WITH INSTANT FILTER & ONE-TAP ACTIONS -->
         <div class="cockpit-grid-header">
-          <span class="cgh-title" id="homeListHeaderTitle"><i class="ph-fill ph-buildings"></i> Gayrimenkullerim & Bu Ayki Durum</span>
-          <div style="display:flex; gap:6px; flex-wrap:wrap;">
-            <button class="cgh-link primary-pill" onclick="openPropertyModal()"><i class="ph-bold ph-plus"></i> Mülk Ekle</button>
-            <button class="cgh-link" onclick="openHistoricalRentsModal()"><i class="ph-bold ph-clock-counter-clockwise"></i> Geçmiş Yıl Kiraları</button>
-            <button class="cgh-link" onclick="openQuickCollectSelector()"><i class="ph-bold ph-hand-coins"></i> Hızlı Tahsilat</button>
+          <div class="cgh-top-row">
+            <span class="cgh-title" id="homeListHeaderTitle"><i class="ph-fill ph-buildings"></i> Gayrimenkullerim & Bu Ayki Durum</span>
+          </div>
+          <div class="cgh-actions-bar">
+            <button type="button" class="cgh-link primary-pill" onclick="openPropertyModal()">
+              <i class="ph-bold ph-plus-circle"></i> Mülk Ekle
+            </button>
+            <button type="button" class="cgh-link history-pill" onclick="openHistoricalRentsModal()">
+              <i class="ph-bold ph-clock-counter-clockwise"></i> Geçmiş Yıl Kiraları
+            </button>
+            <button type="button" class="cgh-link collect-pill" onclick="openQuickCollectSelector()">
+              <i class="ph-bold ph-hand-coins"></i> Hızlı Tahsilat
+            </button>
           </div>
         </div>
         <div id="dashboardQuickPropertiesBoard" class="cockpit-10-grid"></div>
@@ -404,19 +412,19 @@
            TAB 3: TAHSİLAT & 12 AYLIK ÖDEME MATRİSİ (COLLECTIONS)
            =================================================================== -->
       <section class="tab-view" id="view-collections">
-        <div class="section-header">
+        <div class="section-header" style="flex-direction:column; align-items:stretch; gap:8px;">
           <div>
             <h2 class="section-title">Kira Tahsilat & 12 Aylık Takip</h2>
             <p class="section-sub" id="collectionsSubTitle">Kim ödedi, kim gecikti, kısmi ödeme ve toplu tahsilat</p>
           </div>
-          <div style="display:flex; gap:6px; flex-wrap:wrap;">
-            <button class="btn-outline-sm" onclick="openHistoricalRentsModal()">
-              <i class="ph-bold ph-clock-counter-clockwise"></i> Geçmiş Yıllar Kira Cetveli
+          <div class="cgh-actions-bar">
+            <button type="button" class="cgh-link history-pill" onclick="openHistoricalRentsModal()">
+              <i class="ph-bold ph-clock-counter-clockwise"></i> Geçmiş Yıl Kiraları
             </button>
-            <button class="btn-outline-sm" onclick="openBulkPaymentModal()">
+            <button type="button" class="cgh-link collect-pill" onclick="openBulkPaymentModal()">
               <i class="ph-bold ph-stack"></i> Toplu Tahsilat
             </button>
-            <button class="btn-primary-sm" onclick="openQuickCollectSelector()">
+            <button type="button" class="cgh-link primary-pill" onclick="openQuickCollectSelector()">
               <i class="ph-bold ph-hand-coins"></i> Tahsilat Gir
             </button>
           </div>
@@ -736,7 +744,7 @@
 
             <div id="inAppUpdateStatusBox" class="compact-row" style="margin-bottom:10px;">
               <div>
-                <strong style="font-size:0.84rem; display:block;" id="updateCheckTitle">Güncel Sürüm Kullanılıyor (v1.3.0)</strong>
+                <strong style="font-size:0.84rem; display:block;" id="updateCheckTitle">Güncel Sürüm Kullanılıyor (v1.3.1)</strong>
                 <span style="font-size:0.73rem; color:var(--text-muted);" id="updateCheckDesc">Son denetim: Bugün • Tüm gayrimenkul ve tahsilat verileriniz güvende.</span>
               </div>
               <button type="button" class="btn-primary-sm" onclick="checkAndApplyInAppUpdate()">
