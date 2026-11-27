@@ -4141,6 +4141,98 @@ html, body {
   color: var(--text-secondary);
 }
 
+/* ==========================================================================
+   RENTORA V13 — 12-MONTH MINI STRIP, PORTFOLIO AMORTIZATION SUMMARY & BACKUP REMINDER
+   ========================================================================== */
+
+.license-top-banner.backup-remind {
+  background: linear-gradient(90deg, #065f46 0%, #059669 100%) !important;
+  color: #ffffff;
+}
+
+.portfolio-amort-summary-bar {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.04) 0%, rgba(0, 168, 120, 0.08) 100%);
+  border: 1px solid rgba(0, 168, 120, 0.22);
+  border-radius: 10px;
+  padding: 7px 10px;
+}
+
+.mini-12m-strip-box {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 9px 10px;
+  margin-bottom: 10px;
+}
+
+.mini-12m-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 5px;
+}
+
+@media (min-width: 520px) {
+  .mini-12m-grid {
+    grid-template-columns: repeat(12, 1fr);
+  }
+}
+
+.mini-12m-cell {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 4px 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  cursor: pointer;
+  background: var(--bg-surface);
+  transition: transform 0.1s ease;
+}
+
+.mini-12m-cell:active {
+  transform: scale(0.95);
+}
+
+.mini-12m-cell.active-cell {
+  outline: 2px solid #0f172a;
+}
+
+:root[data-theme="dark"] .mini-12m-cell.active-cell {
+  outline: 2px solid #38bdf8;
+}
+
+.mini-12m-cell.ym-paid {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #059669;
+}
+
+.mini-12m-cell.ym-partial {
+  background: rgba(245, 158, 11, 0.16);
+  border-color: rgba(245, 158, 11, 0.38);
+  color: #d97706;
+}
+
+.mini-12m-cell.ym-overdue {
+  background: rgba(225, 29, 72, 0.13);
+  border-color: rgba(225, 29, 72, 0.34);
+  color: #e11d48;
+}
+
+.m12-lbl {
+  font-size: 0.58rem;
+  font-weight: 700;
+  opacity: 0.85;
+}
+
+.m12-sym {
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+
 
 
 
