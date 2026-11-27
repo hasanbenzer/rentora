@@ -284,27 +284,13 @@
           </button>
         </div>
 
-        <!-- 3. DUAL EXECUTIVE CHARTS ON HOME SCREEN:
-             (Left) Genel Tahsilat Grafiği  |  (Right) Edinim Maliyeti & Başa Baş (Amortisman) Grafiği -->
-        <div class="home-dual-charts-row">
-          <div class="home-mini-chart-card" onclick="openVisualAnalyticsModal()">
-            <div class="hmc-head">
-              <span class="hmc-title"><i class="ph-fill ph-chart-bar"></i> Genel Tahsilat Grafiği</span>
-              <span class="hmc-badge" id="homeColChartBadge">Detay</span>
-            </div>
-            <div id="homeGeneralCollectionChart" class="hmc-body"></div>
+        <!-- 3. GENEL TAHSİLAT GRAFİĞİ (FULL-WIDTH COMPACT CARD) -->
+        <div class="home-mini-chart-card" style="margin-bottom:10px;" onclick="openVisualAnalyticsModal()">
+          <div class="hmc-head">
+            <span class="hmc-title"><i class="ph-fill ph-chart-bar"></i> Genel Tahsilat Grafiği</span>
+            <span class="hmc-badge" id="homeColChartBadge">Detay</span>
           </div>
-
-          <div class="home-mini-chart-card" onclick="switchTab('reports'); selectReportCard('breakeven_roi')">
-            <div class="hmc-head">
-              <span class="hmc-title"><i class="ph-fill ph-scales"></i> Amortisman (Geri Dönüş)</span>
-              <div class="amort-unit-toggle" onclick="event.stopPropagation()">
-                <button type="button" class="aut-btn active" data-aunit="XAU" onclick="setAmortizationUnit('XAU')">🪙 Altın</button>
-                <button type="button" class="aut-btn" data-aunit="USD" onclick="setAmortizationUnit('USD')">💵 Dolar</button>
-              </div>
-            </div>
-            <div id="homeBreakevenRoiChart" class="hmc-body"></div>
-          </div>
+          <div id="homeGeneralCollectionChart" class="hmc-body"></div>
         </div>
 
         <!-- 4. SINGLE-SCREEN PROPERTY LIST WITH INSTANT FILTER & ONE-TAP ACTIONS -->
@@ -325,6 +311,18 @@
           </div>
         </div>
         <div id="dashboardQuickPropertiesBoard" class="cockpit-10-grid"></div>
+
+        <!-- 5. AMORTİSMAN (GERİ DÖNÜŞ — ALTIN & DOLAR) BÖLÜMÜ (GAYRİMENKULLERİN ALTINDA TAM GENİŞLİK) -->
+        <div class="home-mini-chart-card" style="margin-top:12px;" onclick="switchTab('reports'); selectReportCard('breakeven_roi')">
+          <div class="hmc-head">
+            <span class="hmc-title"><i class="ph-fill ph-scales"></i> Amortisman (Geri Dönüş — Altın & Dolar)</span>
+            <div class="amort-unit-toggle" onclick="event.stopPropagation()">
+              <button type="button" class="aut-btn active" data-aunit="XAU" onclick="setAmortizationUnit('XAU')">🪙 Altın</button>
+              <button type="button" class="aut-btn" data-aunit="USD" onclick="setAmortizationUnit('USD')">💵 Dolar</button>
+            </div>
+          </div>
+          <div id="homeBreakevenRoiChart" class="hmc-body"></div>
+        </div>
 
         <!-- Hidden containers populated for instant modal popups -->
         <div style="display:none;">
@@ -598,22 +596,28 @@
                 <input type="number" id="calcCurrentRent" class="form-control" value="28000" oninput="calculateRentIncrease()" />
               </div>
               <div class="form-group">
-                <label>TÜFE / Artış Oranı (%)</label>
-                <input type="number" step="0.01" id="calcRateInput" class="form-control" value="48.58" oninput="calculateRentIncrease()" />
+                <label>Resmi TÜİK 12 Ay Ort. TÜFE (%)</label>
+                <input type="number" step="0.01" id="calcRateInput" class="form-control" value="31.23" oninput="calculateRentIncrease()" />
               </div>
               <div class="form-group">
                 <label>Yeni Dönem Başlangıcı</label>
-                <input type="date" id="calcEffectiveDate" class="form-control" />
+                <input type="date" id="calcEffectiveDate" class="form-control" onchange="onCalcEffectiveDateChange()" />
               </div>
             </div>
 
+            <div id="calcOfficialTufeInfoBadge" style="font-size:0.75rem; font-weight:700; color:#008f65; background:rgba(0,168,120,0.08); border:1px solid rgba(0,168,120,0.22); border-radius:9px; padding:7px 11px;">
+              🏛️ <strong>TBK m.344 Resmi Yasal Kira Artış Tavanı:</strong> Konut ve çatılı işyerlerinde yasal üst sınır <strong>TÜİK 12 Aylık TÜFE Ortalamasıdır</strong> (Kasım 2026: <strong>%31,23</strong>).
+            </div>
+
             <div class="quick-rate-pills">
-              <span style="font-size:0.75rem; font-weight:700;">Hızlı Oran:</span>
-              <button type="button" class="rate-pill" onclick="setQuickRate(48.58)">%48,58 (TÜİK TÜFE)</button>
-              <button type="button" class="rate-pill" onclick="setQuickRate(51.26)">%51,26</button>
-              <button type="button" class="rate-pill" onclick="setQuickRate(45.00)">%45</button>
-              <button type="button" class="rate-pill" onclick="setQuickRate(35.00)">%35</button>
-              <button type="button" class="rate-pill" onclick="setQuickRate(25.00)">%25</button>
+              <span style="font-size:0.75rem; font-weight:700;">Resmi TÜİK Ayları:</span>
+              <button type="button" class="rate-pill" onclick="setQuickRate(31.23)">Kasım 2026 (%31,23)</button>
+              <button type="button" class="rate-pill" onclick="setQuickRate(31.49)">Ekim 2026 (%31,49)</button>
+              <button type="button" class="rate-pill" onclick="setQuickRate(31.79)">Eylül 2026 (%31,79)</button>
+              <button type="button" class="rate-pill" onclick="setQuickRate(32.03)">Temmuz 2026 (%32,03)</button>
+              <button type="button" class="rate-pill" onclick="setQuickRate(33.39)">Mart 2026 (%33,39)</button>
+              <button type="button" class="rate-pill" onclick="setQuickRate(34.88)">Ocak 2026 (%34,88)</button>
+              <button type="button" class="rate-pill" onclick="setQuickRate(35.91)">Aralık 2025 (%35,91)</button>
               <label class="checkbox-label" style="margin-left:auto; font-size:0.76rem;">
                 <input type="checkbox" id="calcRoundCheckbox" onchange="calculateRentIncrease()" />
                 <span>50 ₺ katına yuvarla</span>
@@ -744,7 +748,7 @@
 
             <div id="inAppUpdateStatusBox" class="compact-row" style="margin-bottom:10px;">
               <div>
-                <strong style="font-size:0.84rem; display:block;" id="updateCheckTitle">Güncel Sürüm Kullanılıyor (v1.3.1)</strong>
+                <strong style="font-size:0.84rem; display:block;" id="updateCheckTitle">Güncel Sürüm Kullanılıyor (v1.3.2)</strong>
                 <span style="font-size:0.73rem; color:var(--text-muted);" id="updateCheckDesc">Son denetim: Bugün • Tüm gayrimenkul ve tahsilat verileriniz güvende.</span>
               </div>
               <button type="button" class="btn-primary-sm" onclick="checkAndApplyInAppUpdate()">
