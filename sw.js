@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rentora-pro-v22';
+const CACHE_NAME = 'rentora-pro-v23';
 const ASSETS = [
   './',
   './index.html',
