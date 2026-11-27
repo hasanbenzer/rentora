@@ -6,7 +6,7 @@
 const STORAGE_KEY = 'rentora_enterprise_v2';
 const MEMBERS_REGISTRY_KEY = 'rentora_members_registry_v1';
 const ACTIVE_SESSION_KEY = 'rentora_active_member_session_v1';
-const CURRENT_APP_VERSION = '1.3.1';
+const CURRENT_APP_VERSION = '1.3.2';
 const AUTH_GATE_STORAGE_KEY = 'rentora_device_auth_token_v1';
 const AUTH_EXPECTED_SHA256 = '7a29b5e673caa030731ebf304028832c0d4617404f395950cb64a2f80dbc0ae6';
 const LEGACY_KEYS = ['rentora_enterprise_v1', 'avigen_kira_takip_v1'];
@@ -36,7 +36,7 @@ let state = {
     iban: '',
     securityPin: '',
     kvkkMask: 'off',
-    defaultTufe: 48.58
+    defaultTufe: 31.23
   },
   properties: [],
   tenants: [],          // Active & archived former tenants
@@ -3128,6 +3128,22 @@ function selectPropertyForCalc(propId) {
   }
 }
 
+const OFFICIAL_TUIK_12M_TUFE_RATES = {
+  '2024-07': 65.07, '2024-08': 65.93, '2024-09': 64.91, '2024-10': 63.47, '2024-11': 62.02, '2024-12': 60.45,
+  '2025-01': 58.51, '2025-02': 56.35, '2025-03': 53.83, '2025-04': 51.26, '2025-05': 48.73, '2025-06': 45.80,
+  '2025-07': 43.23, '2025-08': 41.13, '2025-09': 39.62, '2025-10': 38.36, '2025-11': 37.15, '2025-12': 35.91,
+  '2026-01': 34.88, '2026-02': 33.98, '2026-03': 33.39, '2026-04': 32.82, '2026-05': 32.43, '2026-06': 32.24,
+  '2026-07': 32.03, '2026-08': 31.90, '2026-09': 31.79, '2026-10': 31.49, '2026-11': 31.23, '2026-12': 31.23
+};
+
+function getOfficialTuikRateForDate(dateIso = '') {
+  const ym = String(dateIso || '').slice(0, 7);
+  if (ym && OFFICIAL_TUIK_12M_TUFE_RATES[ym]) {
+    return { ym, rate: OFFICIAL_TUIK_12M_TUFE_RATES[ym] };
+  }
+  return { ym: '2026-11', rate: 31.23 };
+}
+
 function onCalcPropertyChange() {
   const propId = document.getElementById('calcPropertySelect')?.value;
   const prop = state.properties.find(p => p.id === propId);
@@ -3135,13 +3151,37 @@ function onCalcPropertyChange() {
     document.getElementById('calcCurrentRent').value = prop.rentAmount || 0;
     const isCommercial = ['İş Yeri', 'Ofis', 'Dükkan', 'Depo', 'Bina'].includes(prop.type);
     document.getElementById('calcLegalCategory').value = isCommercial ? 'isyeri' : 'konut';
-    document.getElementById('calcEffectiveDate').value = prop.contractEnd || new Date().toISOString().slice(0, 10);
+    const effIso = prop.contractEnd || new Date().toISOString().slice(0, 10);
+    document.getElementById('calcEffectiveDate').value = effIso;
+    syncOfficialTuikRateForEffectiveDate(effIso);
   }
   calculateRentIncrease();
 }
 
+function onCalcEffectiveDateChange() {
+  const effIso = document.getElementById('calcEffectiveDate')?.value || '';
+  if (effIso) {
+    syncOfficialTuikRateForEffectiveDate(effIso);
+  }
+  calculateRentIncrease();
+}
+
+function syncOfficialTuikRateForEffectiveDate(effIso) {
+  const { ym, rate } = getOfficialTuikRateForDate(effIso);
+  const rateInp = document.getElementById('calcRateInput');
+  if (rateInp) rateInp.value = rate;
+  const badge = document.getElementById('calcOfficialTufeInfoBadge');
+  if (badge) {
+    badge.innerHTML = `🏛️ <strong>TBK m.344 Resmi Yasal Kira Artış Tavanı:</strong> Seçili dönem (<strong>${getPeriodTitle(ym)}</strong>) için TÜİK 12 Aylık TÜFE Ortalaması yasal üst sınırı <strong>%${String(rate).replace('.', ',')}</strong> olarak otomatik uygulandı.`;
+  }
+}
+
 function setQuickRate(r) {
   document.getElementById('calcRateInput').value = r;
+  const badge = document.getElementById('calcOfficialTufeInfoBadge');
+  if (badge) {
+    badge.innerHTML = `🏛️ <strong>TBK m.344 Resmi Yasal Kira Artış Tavanı:</strong> Seçilen artış oranı <strong>%${String(r).replace('.', ',')}</strong> üzerinden hesaplanmaktadır.`;
+  }
   calculateRentIncrease();
 }
 
